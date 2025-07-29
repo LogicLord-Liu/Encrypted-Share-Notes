@@ -1,0 +1,59 @@
+---
+// src/layouts/Layout.astro
+import "../styles/global.css"; // 引入 Tailwind CSS
+
+interface Props {
+  title: string;
+}
+
+const { title } = Astro.props;
+---
+
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="generator" content={Astro.generator} />
+    <title>{title}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body
+    class="min-h-screen bg-gray-50 text-gray-800 flex flex-col font-inter antialiased"
+  >
+    <slot />
+  </body>
+</html>
+
+<style is:global>
+  /* 在这里定义 Tailwind CSS 无法直接实现的样式 */
+  /* 或者覆盖一些默认行为 */
+
+  /* 自定义滚动条样式，使其更美观（可选） */
+  textarea::-webkit-scrollbar {
+    width: 8px;
+  }
+  textarea::-webkit-scrollbar-track {
+    background: #f0f2f5; /* 浅灰色轨道 */
+    border-radius: 4px;
+  }
+  textarea::-webkit-scrollbar-thumb {
+    background: #cdd2d7; /* 略深一点的灰色滑块 */
+    border-radius: 4px;
+  }
+  textarea::-webkit-scrollbar-thumb:hover {
+    background: #aab0b6; /* 鼠标悬停时更深的灰色 */
+  }
+
+  /* 使得所有按钮在禁用时视觉上更统一 */
+  button:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+</style>
