@@ -30,9 +30,56 @@ import MainContent from "../components/NoteEditor.astro";
   );
   const createNoteButton = document.getElementById("create-note-button");
 
+  const passwordStrengthText = document.getElementById(
+    "password-strength-text"
+  );
+  const passwordStrengthFill = document.getElementById(
+    "password-strength-fill"
+  );
+
   // 状态变量
   let showPassword = false;
   let selectedExpiration = "1hour"; // 默认值
+
+  // 定义密码强度标签和颜色
+  const strengthLabels = ["非常弱", "弱", "中等", "强", "非常强"];
+  const strengthColors = [
+    "bg-red-500", // score 0: Very Weak
+    "bg-orange-400", // score 1: Weak
+    "bg-yellow-400", // score 2: Medium
+    "bg-green-400", // score 3: Strong
+    "bg-green-600", // score 4: Very Strong
+  ];
+
+  // 监听密码输入框的 input 事件
+  notePasswordInput.addEventListener("input", () => {
+    const value = notePasswordInput.value;
+    const result = zxcvbn(value); // 评估密码强度
+
+    // 更新密码强度文本
+    passwordStrengthText.textContent = value
+      ? `密码强度：${strengthLabels[result.score]}`
+      : "";
+
+    // 移除所有旧的颜色类，防止累积
+    strengthColors.forEach((c) => passwordStrengthFill.classList.remove(c));
+
+    // 根据密码强度设置进度条的颜色和宽度
+    if (value) {
+      passwordStrengthFill.classList.add(strengthColors[result.score]);
+      // 强度条宽度是总宽度的 (score + 1) * 20%
+      passwordStrengthFill.style.width = `${(result.score + 1) * 20}%`;
+    } else {
+      // 密码为空时，清空进度条
+      passwordStrengthFill.style.width = "0%";
+    }
+  });
+
+  // 页面加载时，如果密码框有值（例如浏览器自动填充），也触发一次强度检测
+  if (notePasswordInput.value) {
+    const event = new Event("input");
+    notePasswordInput.dispatchEvent(event);
+  }
 
   // 密码显示/隐藏
   togglePasswordButton.addEventListener("click", () => {
@@ -51,6 +98,12 @@ import MainContent from "../components/NoteEditor.astro";
       password += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     notePasswordInput.value = password;
+
+    const event = new Event("input", {
+      bubbles: true, // 事件是否冒泡
+      cancelable: true, // 事件是否可以取消
+    });
+    notePasswordInput.dispatchEvent(event);
   });
 
   // 过期时间选择
@@ -131,13 +184,11 @@ import MainContent from "../components/NoteEditor.astro";
   const MAX_SIZE_MB = 10;
 
   uploadBtn.addEventListener("click", () => {
-    console.log("点击按钮：打开文件选择器");
     fileInput.click();
   });
 
   fileInput.addEventListener("change", () => {
     const files = fileInput.files;
-    console.log("选择的文件数量：", files.length);
     fileList.innerHTML = "";
     let hasError = false;
 
