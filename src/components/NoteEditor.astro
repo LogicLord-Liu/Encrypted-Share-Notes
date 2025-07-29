@@ -146,11 +146,52 @@
     <!-- 附加文件 -->
     <div>
       <button
+        id="upload-btn"
         class="w-full py-2.5 px-4 border border-gray-300 rounded-md text-gray-700 flex items-center justify-center space-x-2 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-300 transition-colors"
       >
-        <svg class="w-5 h-5" ...>...</svg>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          class="w-5 h-5"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1M16 10l-4-4m0 0L8 10m4-4v12"
+          ></path>
+        </svg>
+
         <span>附加文件</span>
       </button>
+
+      <input type="file" id="file-input" class="hidden" multiple />
+
+      <div
+        id="upload-area"
+        class="mt-4 hidden border-2 border-dashed border-gray-300 p-4 rounded-md text-gray-600"
+      >
+        <p class="mb-2 font-medium">已选择文件：</p>
+        <ul id="file-list" class="list-disc pl-5 text-sm text-gray-800"></ul>
+        <div
+          id="error-message"
+          class="mt-2 hidden text-red-600 text-sm flex items-center space-x-2"
+        >
+          <svg
+            class="w-4 h-4 text-red-600"
+            fill="currentColor"
+            viewBox="0 0 20 20"
+          >
+            <path
+              fill-rule="evenodd"
+              d="M10 18a8 8 0 100-16 8 8 0 000 16zm2.12-10.12a1 1 0 00-1.41 0L10 8.59 9.29 7.88a1 1 0 10-1.41 1.41L8.59 10l-.71.71a1 1 0 101.41 1.41L10 11.41l.71.71a1 1 0 001.41-1.41L11.41 10l.71-.71a1 1 0 000-1.41z"
+              clip-rule="evenodd"></path>
+          </svg>
+          <span id="error-text"></span>
+        </div>
+      </div>
     </div>
 
     <!-- 创建按钮 -->

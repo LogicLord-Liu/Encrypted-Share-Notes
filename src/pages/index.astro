@@ -120,4 +120,47 @@ import MainContent from "../components/NoteEditor.astro";
     selectedExpiration = "1hour";
     createNoteButton.disabled = true; // 清空后再次禁用按钮
   });
+
+  const uploadBtn = document.getElementById("upload-btn");
+  const fileInput = document.getElementById("file-input");
+  const uploadArea = document.getElementById("upload-area");
+  const fileList = document.getElementById("file-list");
+  const errorMessage = document.getElementById("error-message");
+  const errorText = document.getElementById("error-text");
+
+  const MAX_SIZE_MB = 10;
+
+  uploadBtn.addEventListener("click", () => {
+    console.log("点击按钮：打开文件选择器");
+    fileInput.click();
+  });
+
+  fileInput.addEventListener("change", () => {
+    const files = fileInput.files;
+    console.log("选择的文件数量：", files.length);
+    fileList.innerHTML = "";
+    let hasError = false;
+
+    for (const file of files) {
+      console.log(`文件：${file.name}, 大小：${file.size / (1024 * 1024)} MB`);
+
+      if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+        hasError = true;
+        errorText.textContent = `文件 "${file.name}" 超过 ${MAX_SIZE_MB}MB 大小限制`;
+        errorMessage.classList.remove("hidden");
+      } else {
+        const li = document.createElement("li");
+        li.textContent = `${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+        fileList.appendChild(li);
+      }
+    }
+
+    if (!hasError) {
+      errorMessage.classList.add("hidden");
+    }
+
+    if (files.length > 0) {
+      uploadArea.classList.remove("hidden");
+    }
+  });
 </script>
