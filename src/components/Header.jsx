@@ -1,8 +1,28 @@
 // src/components/Header.jsx
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import DropdownMenu from './DropdownMenu.jsx'; // 确保导入你的 DropdownMenu 组件
 
 const Header = () => {
+    const [langMenuOpen, setLangMenuOpen] = useState(false);
+    const menuRef = useRef(null);
+
+    // 点击空白处关闭语言菜单
+    useEffect(() => {
+        function handleClickOutside(event) {
+            if (menuRef.current && !menuRef.current.contains(event.target)) {
+                setLangMenuOpen(false);
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
+    const languages = [
+        { code: "en", label: "English" },
+        { code: "zh", label: "中文" },
+        { code: "fr", label: "Français" },
+    ];
+
     return (
         <header className="bg-white border-b border-gray-100 py-3 px-6 flex items-center justify-between shadow-sm">
             <div className="flex items-center">
@@ -37,6 +57,57 @@ const Header = () => {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path>
                     </svg>
                 </button>
+                <div ref={menuRef} className="relative">
+                    <button
+                        onClick={() => setLangMenuOpen(!langMenuOpen)}
+                        className="flex items-center p-2 rounded-full text-gray-600 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-300 transition"
+                        aria-haspopup="true"
+                        aria-expanded={langMenuOpen}
+                        aria-label="选择语言"
+                        type="button"
+                    >
+                        {/* 语言图标（地球仪） */}
+                        <svg
+                            className="w-6 h-6"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            viewBox="0 0 24 24"
+                            xmlns="http://www.w3.org/2000/svg"
+                        >
+                            <circle
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                            ></circle>
+                            <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M2 12h20M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 010 20"
+                            ></path>
+                        </svg>
+                    </button>
+
+                    {langMenuOpen && (
+                        <ul className="absolute right-0 mt-2 w-36 bg-white rounded-md shadow-lg border border-gray-200 z-50">
+                            {languages.map(({ code, label }) => (
+                                <li
+                                    key={code}
+                                    className="cursor-pointer px-4 py-2 hover:bg-gray-100"
+                                    onClick={() => {
+                                        alert(`选择语言: ${label}`);
+                                        setLangMenuOpen(false);
+                                    }}
+                                    role="menuitem"
+                                >
+                                    {label}
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </div>
 
                 {/* 下拉菜单按钮 (DropdownMenu 组件) */}
                 <DropdownMenu client:load /> {/* 注意这里依然使用 client:load */}
