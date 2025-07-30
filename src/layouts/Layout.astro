@@ -25,6 +25,18 @@ const { title } = Astro.props;
     />
 
     <script src="https://unpkg.com/zxcvbn@4.4.2/dist/zxcvbn.js"></script>
+    <script>
+      // 确保 zxcvbn 在全局 window 对象上可用
+      if (typeof zxcvbn !== "undefined") {
+        window.zxcvbn = zxcvbn;
+      }
+    </script>
+
+    <script>
+      // 这个脚本会在构建时被 Astro 处理并打包，然后客户端执行
+      import qrcode from "qrcode"; // 导入本地安装的 qrcode 库
+      window.QRCodeGenerator = qrcode; // 将 qrcode 对象暴露到全局 window
+    </script>
   </head>
   <body
     class="min-h-screen bg-gray-50 text-gray-800 flex flex-col font-inter antialiased"
