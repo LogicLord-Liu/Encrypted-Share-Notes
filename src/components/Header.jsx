@@ -26,7 +26,7 @@ const Header = () => {
     return (
         <header className="bg-white border-b border-gray-100 py-3 px-6 flex items-center justify-between shadow-sm">
             <div className="flex items-center">
-                <span className="font-bold text-2xl text-gray-800 mr-2">Enclosed</span>
+                <span className="font-bold text-2xl text-gray-800 mr-2">Transcrypt</span>
                 <span className="text-sm text-gray-500 hidden sm:block mt-2">发送私密和安全笔记</span>
             </div>
             <nav className="flex items-center space-x-4">

@@ -112,7 +112,7 @@ import MainContent from "../components/NoteEditor.astro";
 
         const deleteButton = document.createElement("button");
         deleteButton.type = "button";
-        deleteButton.textContent = "Delete";
+        deleteButton.textContent = "❌";
         deleteButton.classList.add(
           "text-red-500",
           "hover:text-red-700",
@@ -196,6 +196,30 @@ import MainContent from "../components/NoteEditor.astro";
       try {
         // 模拟后端请求，这里可以添加真实的 fetch 请求
         // 假设成功，直接执行后续逻辑
+        
+        // **新增或修改的笔记数据对象**
+        const newNote = {
+          id: newNoteId,
+          content: noteContent,
+          password: notePassword,
+          expiration: selectedExpiration,
+          deleteAfterReading: deleteAfterReading,
+          files: uploadedFiles.map((f) => ({
+            name: f.name,
+            size: f.size,
+            type: f.type,
+          })),
+          createdAt: new Date().toISOString(),
+        };
+
+        // **核心修改点：将新笔记保存到 localStorage**
+        let notes = JSON.parse(localStorage.getItem(NOTES_STORAGE_KEY) || "[]");
+        notes.push(newNote);
+        localStorage.setItem(NOTES_STORAGE_KEY, JSON.stringify(notes));
+
+        console.log("创建笔记并保存到 localStorage：", newNote);
+
+
 
         // 重置表单
         dom.noteContentInput.value = "";

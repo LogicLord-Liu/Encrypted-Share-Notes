@@ -14,6 +14,8 @@
 **Transcrypt** 是一个轻量、安全、专注隐私的文件和消息分享工具。
 用户可以在浏览器中加密内容，并通过唯一链接或二维码安全分享。
 
+![Transcrypt](https://lorcan.dpdns.org/TranscryptScreenShot.png)
+
 ## ✨ Features
 
 - 🔒 端到端加密 (AES-256)
@@ -46,4 +48,4 @@
 
 # 📄 License
 
-EPL-2.0 License © 2025 [Vannik-Liu]
+EPL-2.0 License © 2025 [Vannik-Liu](https://github.com/LogicLord-Liu/)

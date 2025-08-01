@@ -14,6 +14,8 @@
 **Transcrypt** is a lightweight, secure, and privacy-focused file and message sharing tool.
 Easily encrypt your content in the browser and share it via a unique link or QR code.
 
+![Transcrypt](https://lorcan.dpdns.org/TranscryptScreenShot.png)
+
 ## ✨ Features
 
 - 🔒 End-to-end encryption (AES-256)
@@ -46,4 +48,4 @@ Easily encrypt your content in the browser and share it via a unique link or QR 
 
 # 📄 License
 
-EPL-2.0 License © 2025 [Vannik-Liu]
+EPL-2.0 License © 2025 [Vannik-Liu](https://github.com/LogicLord-Liu/)

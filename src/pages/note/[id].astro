@@ -1,162 +1,110 @@
 ---
-// src/pages/note/[id].astro
-// 这是一个动态路由页面，用于显示单个笔记内容
-
 import Layout from "../../layouts/Layout.astro";
 
-// 从 Astro.params 获取动态路由参数
+// 在服务器端获取路由参数
 const { id } = Astro.params;
-export const prerender = false;
 
-// 在服务器端（构建时或开发服务器请求时）无法直接访问 localStorage
-// 所以我们需要在客户端脚本中加载笔记数据
+// 这个脚本块将在服务器上执行
+let noteContent = "正在加载...";
+let noteData = null;
 
-// 定义一个变量来传递到客户端脚本，或者直接在客户端脚本中获取 ID
-// 我们将通过 JavaScript 在客户端获取 ID 和数据
+// 在服务器端无法访问 localStorage，因此我们需要在客户端脚本中处理
+// 这里的变量只是占位符
 ---
 
-<Layout title={`笔记详情 - ${id}`}>
-  <main
-    class="flex flex-col items-center justify-center min-h-screen bg-gray-50 text-gray-800 p-4"
-  >
-    <div class="bg-white rounded-lg shadow-xl p-8 w-full max-w-2xl text-center">
-      <h1 class="text-3xl font-bold text-gray-800 mb-6">笔记内容</h1>
+<Layout title="查看笔记 - Enclosed">
+  <main class="flex flex-col items-center justify-center min-h-screen">
+    <div class="bg-white p-8 rounded-lg shadow-lg w-full max-w-2xl text-center">
+      <h1 class="text-3xl font-bold mb-6 text-gray-800">笔记内容</h1>
 
-      <div id="note-display-area" class="text-left">
-        <p class="text-gray-600 mb-4">加载中...</p>
+      <div id="note-display-area">
+        <p class="text-gray-600">正在加载笔记...</p>
       </div>
 
-      <div id="password-input-container" class="mt-6 hidden">
-        <label
-          for="view-password"
-          class="block text-gray-700 text-sm font-bold mb-2"
-        >
-          请输入密码查看笔记:
-        </label>
-        <input
-          type="password"
-          id="view-password"
-          class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-          placeholder="笔记密码"
-        />
-        <button
-          id="view-note-button"
-          class="mt-4 bg-sky-500 hover:bg-sky-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-        >
-          查看笔记
-        </button>
-      </div>
-
-      <div id="file-attachments-area" class="mt-6 text-left hidden">
-        <h3 class="text-xl font-bold mb-2">附件:</h3>
-        <ul
-          id="attached-files-list"
-          class="list-disc list-inside text-gray-700"
-        >
-        </ul>
-      </div>
-
-      <div class="mt-8">
-        <a href="/" class="text-sky-500 hover:underline">返回首页</a>
-      </div>
+      <a href="/" class="mt-8 inline-block text-sky-600 hover:underline"
+        >返回首页</a
+      >
     </div>
   </main>
 </Layout>
 
-<script is:inline>
-  const NOTES_STORAGE_KEY = "enclosed_notes_data"; // 保持和主页一致
+<script>
+  if (typeof window !== "undefined") {
+    const NOTES_STORAGE_KEY = "enclosed_notes_data";
+    const url = new URL(window.location.href);
+    const noteId = url.pathname.split("/").pop(); // 从 URL 中获取 ID
+    const noteDisplayArea = document.getElementById("note-display-area");
 
-  const noteDisplayArea = document.getElementById("note-display-area");
-  const passwordInputContainer = document.getElementById(
-    "password-input-container"
-  );
-  const viewPasswordInput = document.getElementById("view-password");
-  const viewNoteButton = document.getElementById("view-note-button");
-  const fileAttachmentsArea = document.getElementById("file-attachments-area");
-  const attachedFilesList = document.getElementById("attached-files-list");
-
-  // 获取 URL 中的笔记 ID
-  const pathParts = window.location.pathname.split("/");
-  const noteId = pathParts[pathParts.length - 1]; // 假设 ID 是最后一个部分
-
-  let currentNote = null; // 用于存储当前加载的笔记
-
-  function displayNote(note) {
-    if (!note) {
-      noteDisplayArea.innerHTML = `<p class="text-red-500">笔记未找到或已过期/删除。</p>`;
-      return;
+    function displayError(message) {
+      noteDisplayArea.innerHTML = `
+        <div class="text-red-500 font-medium">加载笔记失败:</div>
+        <p class="text-red-500">${message}</p>
+      `;
     }
 
-    let contentHtml = `<p class="text-lg mb-4 whitespace-pre-wrap">${note.content}</p>`;
+    function displayNote(note) {
+      // 显示笔记内容
+      let contentHtml = `<p class="font-['Helvetica_Neue','PingFang_SC',Arial,sans-serif],text-xl text-gray-900 text-left whitespace-pre-wrap leading-relaxed">${note.content}</p>`;
 
-    if (note.files && note.files.length > 0) {
-      fileAttachmentsArea.classList.remove("hidden");
-      attachedFilesList.innerHTML = "";
-      note.files.forEach((file) => {
-        const li = document.createElement("li");
-        li.textContent = `${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
-        attachedFilesList.appendChild(li);
-      });
-      // 实际应用中，这里会是文件下载链接
-      contentHtml += `<p class="text-sm text-gray-500 mt-2">（文件预览/下载功能需后端支持）</p>`;
-    } else {
-      fileAttachmentsArea.classList.add("hidden");
+      // 显示文件列表（如果存在）
+      if (note.files && note.files.length > 0) {
+        contentHtml += `
+          <div class="mt-6 text-left">
+            <h2 class="text-2xl font-bold mb-3 text-gray-900">附件</h2>
+            <ul class="list-disc pl-5 text-gray-800 text-base">
+              ${note.files.map((file) => `<li>${file.name} (${(file.size / 1024).toFixed(1)} KB)</li>`).join("")}
+            </ul>
+          </div>
+        `;
+      }
+
+      noteDisplayArea.innerHTML = contentHtml;
     }
 
-    // 模拟过期时间显示
-    if (note.expiration && note.expiration !== "never") {
-      contentHtml += `<p class="text-sm text-gray-500 mt-2">此笔记将在 ${note.expiration} 后过期 (模拟)。</p>`;
-    }
-    if (note.deleteAfterReading) {
-      contentHtml += `<p class="text-sm text-gray-500">此笔记将在首次阅读后删除 (模拟)。</p>`;
-    }
+    function renderPasswordForm(note) {
+      noteDisplayArea.innerHTML = `
+        <form id="password-form" class="mt-4">
+          <p class="mb-4 text-gray-700 text-base">此笔记受密码保护，请输入密码。</p>
+          <input 
+            type="password" 
+            id="note-password-input" 
+            placeholder="请输入密码" 
+            class="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 placeholder-gray-500"
+          />
+          <button type="submit" class="mt-4 w-full bg-sky-500 text-white font-bold py-2 rounded-md hover:bg-sky-600 transition-colors">
+            解锁笔记
+          </button>
+        </form>
+      `;
 
-    noteDisplayArea.innerHTML = contentHtml;
-  }
+      const passwordForm = document.getElementById("password-form");
+      const passwordInput = document.getElementById("note-password-input");
 
-  function loadNote() {
-    const storedNotes = JSON.parse(
-      localStorage.getItem(NOTES_STORAGE_KEY) || "[]"
-    );
-    currentNote = storedNotes.find((n) => n.id === noteId);
-
-    if (currentNote) {
-      if (currentNote.password) {
-        // 如果有密码，显示密码输入框
-        noteDisplayArea.innerHTML = `<p class="text-gray-600">此笔记受密码保护。</p>`;
-        passwordInputContainer.classList.remove("hidden");
-        viewNoteButton.onclick = () => {
-          if (viewPasswordInput.value === currentNote.password) {
-            passwordInputContainer.classList.add("hidden");
-            displayNote(currentNote);
-            // 模拟“阅读后删除”逻辑
-            if (currentNote.deleteAfterReading) {
-              const updatedNotes = storedNotes.filter((n) => n.id !== noteId);
-              localStorage.setItem(
-                NOTES_STORAGE_KEY,
-                JSON.stringify(updatedNotes)
-              );
-              console.log(`笔记 ${noteId} 已被模拟删除。`);
-            }
-          } else {
-            alert("密码不正确！");
-          }
-        };
-      } else {
-        // 没有密码，直接显示
-        displayNote(currentNote);
-        // 模拟“阅读后删除”逻辑
-        if (currentNote.deleteAfterReading) {
-          const updatedNotes = storedNotes.filter((n) => n.id !== noteId);
-          localStorage.setItem(NOTES_STORAGE_KEY, JSON.stringify(updatedNotes));
-          console.log(`笔记 ${noteId} 已被模拟删除。`);
+      passwordForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const password = passwordInput.value;
+        if (password === note.password) {
+          displayNote(note);
+        } else {
+          passwordInput.classList.add("border-red-500");
+          passwordInput.placeholder = "密码错误，请重试";
+          passwordInput.value = "";
         }
+      });
+    }
+
+    // 页面加载时执行的逻辑
+    const notes = JSON.parse(localStorage.getItem(NOTES_STORAGE_KEY) || "[]");
+    const foundNote = notes.find((note) => note.id === noteId);
+
+    if (foundNote) {
+      if (foundNote.password) {
+        renderPasswordForm(foundNote);
+      } else {
+        displayNote(foundNote);
       }
     } else {
-      noteDisplayArea.innerHTML = `<p class="text-red-500">笔记未找到或已过期/删除。</p>`;
+      displayError("笔记未找到。");
     }
   }
-
-  // 页面加载时加载笔记
-  document.addEventListener("DOMContentLoaded", loadNote);
 </script>
