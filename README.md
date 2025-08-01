@@ -1,43 +1,38 @@
-# Astro Starter Kit: Minimal
+# 🔐 Transcrypt
 
-```sh
-npm create astro@latest -- --template minimal
-```
+**Transcrypt** is a lightweight, secure, and privacy-focused file and message sharing tool.
+Easily encrypt your content in the browser and share it via a unique link or QR code.
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
+## ✨ Features
 
-## 🚀 Project Structure
+- 🔒 End-to-end encryption (AES-256)
+- 📤 Secure file & text sharing
+- 🧨 Self-destruct after read or expiration
+- ⏳ Optional password protection
+- 🔐 QR code sharing support
+- 📱 Password strength detection
+- 🧩 Generate random token (ID) as unguessable URL
+- 📶 QR code embeds password for auto-decrypt
 
-Inside of your Astro project, you'll see the following folders and files:
+## 🛠 Tech Stack
 
-```text
-/
-├── public/
-├── src/
-│   └── pages/
-│       └── index.astro
-└── package.json
-```
+| Category           | Tools                              |
+|----------------|----------------------------------------|
+| Frontend       | HTML / TypeScript / JavaScript         |
+| Styling        | UnoCSS / Tailwind CSS                  |
+| Crypto         | Web Crypto API                         |
+| QRCode     | QRCode.js                              |
+| Deployment（Option）| Cloudflare Pages / Vercel             |
 
-Astro looks for `.astro` or `.md` files in the `src/pages/` directory. Each page is exposed as a route based on its file name.
+## Future features
 
-There's nothing special about `src/components/`, but that's where we like to put any Astro/React/Vue/Svelte/Preact components.
+- [] ❗Self-destruct content after too many failed attempts
+- [] 📧Send share link to recipient via email
+- [] 🌍IP/country access restriction (Cloudflare headers)
+- [] ⏰Delay reveal content like a “future letter”
+- [] 🔒Visitors can send encrypted messages via anonymous page
+- [] 🛡️ Anti-brute-force protection (with Cloudflare Turnstile)
 
-Any static assets, like images, can be placed in the `public/` directory.
+# 📄 License
 
-## 🧞 Commands
-
-All commands are run from the root of the project, from a terminal:
-
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
-
-## 👀 Want to learn more?
-
-Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
+EPL-2.0 License © 2025 [Vannik-Liu]
