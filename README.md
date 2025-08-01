@@ -26,12 +26,12 @@ Easily encrypt your content in the browser and share it via a unique link or QR 
 
 ## Future features
 
-- [] ❗Self-destruct content after too many failed attempts
-- [] 📧Send share link to recipient via email
-- [] 🌍IP/country access restriction (Cloudflare headers)
-- [] ⏰Delay reveal content like a “future letter”
-- [] 🔒Visitors can send encrypted messages via anonymous page
-- [] 🛡️ Anti-brute-force protection (with Cloudflare Turnstile)
+- []❗Self-destruct content after too many failed attempts
+- []📧Send share link to recipient via email
+- []🌍IP/country access restriction (Cloudflare headers)
+- []⏰Delay reveal content like a “future letter”
+- []🔒Visitors can send encrypted messages via anonymous page
+- []🛡️ Anti-brute-force protection (with Cloudflare Turnstile)
 
 # 📄 License
 
