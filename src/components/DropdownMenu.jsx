@@ -44,7 +44,7 @@ const DropdownMenu = () => {
         if (action === 'reportBug') {
             window.location.href = 'https://github.com/LogicLord-Liu/Encrypted-Share-Notes/issues/new';
         } else if (action === 'support') {
-            window.location.href = 'https://github.com/LogicLord-Liu/Encrypted-Share-Notes/issues/new';
+            window.location.href = 'https://buymeacoffee.com/Vannik';
         }
     };
 

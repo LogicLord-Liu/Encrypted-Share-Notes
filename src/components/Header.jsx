@@ -30,9 +30,8 @@ const Header = () => {
                 <span className="text-sm text-gray-500 hidden sm:block mt-2">发送私密和安全笔记</span>
             </div>
             <nav className="flex items-center space-x-4">
-                {/* 新建笔记按钮 */}
                 <button
-                    className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition-all shadow-sm"
+                    className="flex items-center px-4 py-2 bg-sky-500/60 text-white rounded-lg text-sm font-medium hover:bg-sky-500/80 focus:outline-none focus:ring-2 focus:bg-sky-500/100 focus:ring-opacity-50 transition-all shadow-sm"
                 >
                     <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
