@@ -1,4 +1,15 @@
-# 🔐 Transcrypt
+<h1 align="center">
+  🔐 Transcrypt - 发送私密和安全的消息
+</h1>
+<p align="center">
+  专为发送端到端加密笔记和文件而设计的简约风格网页应用程序。
+</p>
+
+<p align="center">
+  <a href="https://enclosed.cc">Demo</a>
+  <span>&nbsp;&nbsp;•&nbsp;&nbsp;</span>
+  <a href="https://github.com/LogicLord-Liu/Encrypted-Share-Notes/blob/main/README.md">英文</a>
+</p>
 
 **Transcrypt** 是一个轻量、安全、专注隐私的文件和消息分享工具。
 用户可以在浏览器中加密内容，并通过唯一链接或二维码安全分享。
@@ -26,12 +37,12 @@
 
 ## Future features
 
-- [] 超过指定次数自动销毁内容
-- [] 邮件通知接收者生成链接后填写邮箱，系统自动发送分享链接（通过 MailChannels）
-- [] 限制访问 IP/Country 上传时可选择：仅限某些国家 / IP 查看（结合 Cloudflare headers）
-- [] 延时公开内容（定时揭晓）类似“未来邮件”：上传内容设定几天后才开放解密
-- [] 生成匿名留言链接访客可以给你发送一条加密内容（你有密码才能看）
-- [] 防爆破机制多次尝试错误后 IP 封锁（可结合 Cloudflare Turnstile 验证）
+- [ ] ❗超过指定次数自动销毁内容
+- [ ] 📧邮件通知接收者生成链接后填写邮箱，系统自动发送分享链接（通过 MailChannels）
+- [ ] 🌍限制访问 IP/Country 上传时可选择：仅限某些国家 / IP 查看（结合 Cloudflare headers）
+- [ ] ⏰延时公开内容（定时揭晓）类似“未来邮件”：上传内容设定几天后才开放解密
+- [ ] 🔒生成匿名留言链接访客可以给你发送一条加密内容（你有密码才能看）
+- [ ] 🛡️防爆破机制多次尝试错误后 IP 封锁（可结合 Cloudflare Turnstile 验证）
 
 # 📄 License
 
