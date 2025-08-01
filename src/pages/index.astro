@@ -1,447 +1,437 @@
 ---
 // src/pages/index.astro
 import Layout from "../layouts/Layout.astro";
-
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import MainContent from "../components/NoteEditor.astro";
-
-import qrcode from "qrcode";
 ---
 
 <Layout title="安全分享 - Enclosed">
   <Header client:load />
-
   <MainContent client:load />
-
   <Footer client:load />
 </Layout>
 
 <script is:inline>
-  // 获取 DOM 元素
-  const noteContentInput = document.getElementById("note-content");
-  const notePasswordInput = document.getElementById("note-password");
-  const togglePasswordButton = document.getElementById("toggle-password");
-  const eyeOpenIcon = document.getElementById("eye-open");
-  const eyeClosedIcon = document.getElementById("eye-closed");
-  const generatePasswordButton = document.getElementById("generate-password");
-  const expirationOptionsContainer =
-    document.getElementById("expiration-options");
-  const deleteAfterReadingCheckbox = document.getElementById(
-    "delete-after-reading"
-  );
-  const createNoteButton = document.getElementById("create-note-button");
+  if (typeof window !== "undefined") {
+    // 全局状态变量
+    let showPassword = false;
+    let selectedExpiration = "1hour";
+    let uploadedFiles = [];
+    const MAX_SIZE_MB = 10;
+    const MAX_FILE_SIZE = MAX_SIZE_MB * 1024 * 1024;
+    const NOTES_STORAGE_KEY = "enclosed_notes_data";
+    const strengthLabels = ["非常弱", "弱", "中等", "强", "非常强"];
+    const strengthColors = [
+      "bg-red-500",
+      "bg-orange-400",
+      "bg-yellow-400",
+      "bg-green-400",
+      "bg-green-600",
+    ];
 
-  const passwordStrengthText = document.getElementById(
-    "password-strength-text"
-  );
-  const passwordStrengthFill = document.getElementById(
-    "password-strength-fill"
-  );
-
-  const NOTES_STORAGE_KEY = "enclosed_notes_data";
-
-  // === 新增：成功弹窗相关的 DOM 元素 ===
-  const successModal = document.getElementById("success-modal");
-  const successModalContent = document.getElementById("success-modal-content");
-  const encryptedLinkDisplay = document.getElementById(
-    "encrypted-link-display"
-  );
-  const copyLinkButton = document.getElementById("copy-link-button");
-  const copyFeedback = document.getElementById("copy-feedback");
-  const qrcodeContainer = document.getElementById("qrcode-container");
-  const qrcodeCanvas = document.getElementById("qrcode-canvas"); // 虽然 qrcode.js 直接操作容器，但获取 canvas ID 可能有用
-  const closeModalButton = document.getElementById("close-modal-button");
-  const errorMessageContainer = document.getElementById("error-message");
-
-  // 状态变量
-  let showPassword = false;
-  let selectedExpiration = "1hour"; // 默认值
-  let uploadedFiles = [];
-
-  function generateUniqueId() {
-    return (
-      Math.random().toString(36).substring(2, 15) +
-      Math.random().toString(36).substring(2, 15)
-    );
-  }
-
-  // 定义密码强度标签和颜色
-  const strengthLabels = ["非常弱", "弱", "中等", "强", "非常强"];
-  const strengthColors = [
-    "bg-red-500", // score 0: Very Weak
-    "bg-orange-400", // score 1: Weak
-    "bg-yellow-400", // score 2: Medium
-    "bg-green-400", // score 3: Strong
-    "bg-green-600", // score 4: Very Strong
-  ];
-
-  // 监听密码输入框的 input 事件
-  notePasswordInput.addEventListener("input", () => {
-    const value = notePasswordInput.value;
-    const result = zxcvbn(value); // 评估密码强度
-
-    // 更新密码强度文本
-    passwordStrengthText.textContent = value
-      ? `密码强度：${strengthLabels[result.score]}`
-      : "";
-
-    // 移除所有旧的颜色类，防止累积
-    strengthColors.forEach((c) => passwordStrengthFill.classList.remove(c));
-
-    // 根据密码强度设置进度条的颜色和宽度
-    if (value) {
-      passwordStrengthFill.classList.add(strengthColors[result.score]);
-      // 强度条宽度是总宽度的 (score + 1) * 20%
-      passwordStrengthFill.style.width = `${(result.score + 1) * 20}%`;
-    } else {
-      // 密码为空时，清空进度条
-      passwordStrengthFill.style.width = "0%";
-    }
-  });
-
-  // 页面加载时，如果密码框有值（例如浏览器自动填充），也触发一次强度检测
-  if (notePasswordInput.value) {
-    const event = new Event("input");
-    notePasswordInput.dispatchEvent(event);
-  }
-
-  // 密码显示/隐藏
-  togglePasswordButton.addEventListener("click", () => {
-    showPassword = !showPassword;
-    notePasswordInput.type = showPassword ? "text" : "password";
-    eyeOpenIcon.classList.toggle("hidden", !showPassword);
-    eyeClosedIcon.classList.toggle("hidden", showPassword);
-  });
-
-  // 生成密码
-  generatePasswordButton.addEventListener("click", () => {
-    const chars =
-      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+";
-    let password = "";
-    for (let i = 0; i < 15; i++) {
-      password += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    notePasswordInput.value = password;
-
-    const event = new Event("input", {
-      bubbles: true, // 事件是否冒泡
-      cancelable: true, // 事件是否可以取消
-    });
-    notePasswordInput.dispatchEvent(event);
-  });
-
-  // 过期时间选择
-  expirationOptionsContainer.addEventListener("click", (event) => {
-    const targetButton = event.target.closest("button[data-value]");
-    if (targetButton) {
-      // 移除所有按钮的选中样式
-      expirationOptionsContainer.querySelectorAll("button").forEach((btn) => {
-        btn.classList.remove("bg-sky-500/60", "text-white");
-        btn.classList.add("bg-gray-100", "text-gray-700", "hover:bg-gray-200");
-      });
-      // 添加选中按钮的样式
-      targetButton.classList.add("bg-sky-500/60", "text-white");
-      targetButton.classList.remove(
-        "bg-gray-100",
-        "text-gray-700",
-        "hover:bg-gray-200"
-      );
-      selectedExpiration = targetButton.dataset.value;
-    }
-  });
-
-  // 启用/禁用创建笔记按钮
-  noteContentInput.addEventListener("input", () => {
-    createNoteButton.disabled = noteContentInput.value.trim() === "";
-  });
-  // 初始禁用状态
-  createNoteButton.disabled = noteContentInput.value.trim() === "";
-
-  function waitForGlobal(variableName, timeout = 5000) {
-    return new Promise((resolve, reject) => {
-      const startTime = Date.now();
-      const checkInterval = setInterval(() => {
-        if (
-          typeof window[variableName] !== "undefined" &&
-          window[variableName] !== null
-        ) {
-          clearInterval(checkInterval);
-          resolve(window[variableName]);
-        } else if (Date.now() - startTime > timeout) {
-          clearInterval(checkInterval);
-          reject(new Error(`${variableName} 未能在 ${timeout}ms 内加载。`));
-        }
-      }, 50); // 每50毫秒检查一次
-    });
-  }
-
-  // 创建笔记逻辑
-  createNoteButton.addEventListener("click", async () => {
-    console.log("创建笔记按钮被点击了！");
-
-    const noteContent = noteContentInput.value.trim();
-    if (!noteContent) {
-      alert("笔记内容不能为空！");
-      return;
-    }
-
-    if (!errorMessageContainer.classList.contains("hidden")) {
-      alert("请解决文件上传错误后重试。");
-      return;
-    }
-
-    const notePassword = notePasswordInput.value;
-    const deleteAfterReading = deleteAfterReadingCheckbox.checked;
-
-    const newNote = {
-      id: generateUniqueId(), // 使用生成的唯一ID
-      content: noteContent,
-      password: notePassword, // 密码明文，实际应用中应该哈希处理
-      expiration: selectedExpiration,
-      deleteAfterReading: deleteAfterReading,
-      files: uploadedFiles.map((f) => ({
-        // 仅保存文件元数据，实际文件内容无法在 localStorage 中直接保存
-        name: f.name,
-        size: f.size,
-        type: f.type,
-        // 实际应用中这里会是文件在服务器上的路径或ID
-      })),
-      createdAt: new Date().toISOString(), // 添加创建时间
-      // 其他字段，如查看次数，实际应用中后端处理
+    // DOM 元素引用
+    const dom = {
+      noteContentInput: document.getElementById("note-content"),
+      notePasswordInput: document.getElementById("note-password"),
+      togglePasswordButton: document.getElementById("toggle-password"),
+      eyeOpenIcon: document.getElementById("eye-open"),
+      eyeClosedIcon: document.getElementById("eye-closed"),
+      generatePasswordButton: document.getElementById("generate-password"),
+      expirationOptionsContainer: document.getElementById("expiration-options"),
+      deleteAfterReadingCheckbox: document.getElementById(
+        "delete-after-reading"
+      ),
+      createNoteButton: document.getElementById("create-note-button"),
+      passwordStrengthText: document.getElementById("password-strength-text"),
+      passwordStrengthFill: document.getElementById("password-strength-fill"),
+      successModal: document.getElementById("success-modal"),
+      successModalContent: document.getElementById("success-modal-content"),
+      encryptedLinkDisplay: document.getElementById("encrypted-link-display"),
+      copyLinkButton: document.getElementById("copy-link-button"),
+      copyFeedback: document.getElementById("copy-feedback"),
+      qrcodeContainer: document.getElementById("qrcode-container"),
+      qrcodeCanvas: document.getElementById("qrcode-canvas"),
+      closeModalButton: document.getElementById("close-modal-button"),
+      errorMessageContainer: document.getElementById("error-message"),
+      uploadBtn: document.getElementById("upload-btn"),
+      fileInput: document.getElementById("file-input"),
+      uploadArea: document.getElementById("upload-area"),
+      fileList: document.getElementById("file-list"),
+      errorText: document.getElementById("error-text"),
     };
 
-    let notes = JSON.parse(localStorage.getItem(NOTES_STORAGE_KEY) || "[]");
-    notes.push(newNote);
-    localStorage.setItem(NOTES_STORAGE_KEY, JSON.stringify(notes));
+    // --- 辅助函数 ---
 
-    console.log("模拟保存的笔记数据:", newNote);
-
-    console.log("创建笔记：", {
-      content: noteContent,
-      password: notePassword,
-      expiration: selectedExpiration,
-      deleteAfterReading: deleteAfterReading,
-      files: uploadedFiles.map((f) => ({
-        name: f.name,
-        size: f.size,
-        type: f.type,
-      })),
-    });
-
-    // 模拟成功创建笔记，获取一个虚拟的笔记ID
-    const dummyNoteId = generateUniqueId();
-    // 模拟的加密链接 (根据你的实际应用修改)
-    const encryptedLink = `${window.location.origin}/note/${dummyNoteId}`; // 示例链接
-
-    // 清空表单
-    noteContentInput.value = "";
-    notePasswordInput.value = "";
-    deleteAfterReadingCheckbox.checked = false;
-    uploadedFiles = [];
-    fileInput.value = "";
-    uploadArea.classList.add("hidden");
-    fileList.innerHTML = ""; // 清空文件列表
-
-    // 重置过期时间选择按钮样式
-    expirationOptionsContainer.querySelectorAll("button").forEach((btn) => {
-      btn.classList.remove("bg-sky-500/60", "text-white");
-      btn.classList.add("bg-gray-100", "text-gray-700", "hover:bg-gray-200");
-      if (btn.dataset.value === "1hour") {
-        btn.classList.add("bg-sky-500/60", "text-white");
-        btn.classList.remove(
-          "bg-gray-100",
-          "text-gray-700",
-          "hover:bg-gray-200"
-        );
-      }
-    });
-    selectedExpiration = "1hour";
-    createNoteButton.disabled = true;
-
-    if (!successModal || !successModalContent) {
-      console.error(
-        "successModal 或 successModalContent 元素未定义！请检查 HTML ID 和 JS 获取代码。"
+    function generateUniqueId() {
+      return (
+        Math.random().toString(36).substring(2, 15) +
+        Math.random().toString(36).substring(2, 15)
       );
-      alert("弹窗加载失败，请刷新页面。");
-      return;
     }
 
-    // === 显示成功弹窗 ===
-    encryptedLinkDisplay.value = encryptedLink;
+    function waitForGlobal(variableName, timeout = 5000) {
+      return new Promise((resolve, reject) => {
+        const startTime = Date.now();
+        const checkInterval = setInterval(() => {
+          if (
+            typeof window[variableName] !== "undefined" &&
+            window[variableName] !== null
+          ) {
+            clearInterval(checkInterval);
+            resolve(window[variableName]);
+          } else if (Date.now() - startTime > timeout) {
+            clearInterval(checkInterval);
+            reject(new Error(`${variableName} 未能在 ${timeout}ms 内加载。`));
+          }
+        }, 50);
+      });
+    }
 
-    // 确保 canvas 容器是空的，防止重复渲染
-    qrcodeCanvas
-      .getContext("2d")
-      .clearRect(0, 0, qrcodeCanvas.width, qrcodeCanvas.height);
+    // --- 文件上传和删除逻辑 ---
 
-    // 使用新的 qrcode.es 库生成二维码
-    try {
-      console.log("等待 QRCodeGenerator 加载...");
-      const QRCodeGeneratorObj = await waitForGlobal("QRCodeGenerator", 10000); // 等待获取到的是 qrcode 对象
-      console.log("QRCodeGenerator 已加载，类型:", typeof QRCodeGeneratorObj);
+    function renderFileList() {
+      if (!dom.fileList) return;
+      dom.fileList.innerHTML = "";
 
-      // 现在我们知道 QRCodeGeneratorObj 是一个对象
-      // 它的 toCanvas 方法位于 QRCodeGeneratorObj.toCanvas
-      if (typeof QRCodeGeneratorObj.toCanvas === "function") {
-        // <--- 更改这里的检查：检查 toCanvas 是否是函数
-        await QRCodeGeneratorObj.toCanvas(qrcodeCanvas, encryptedLink, {
-          // <--- 更改这里的调用：通过对象调用方法
-          width: 128,
-          errorCorrectionLevel: "H",
-        });
-        console.log("二维码生成成功!");
-
-        if (!qrcodeCanvas.dataset.listenerAdded) {
-          // 使用 dataset 属性标记是否已添加监听器
-          qrcodeCanvas.style.cursor = "pointer"; // 鼠标悬停时显示手型光标
-          qrcodeCanvas.addEventListener("click", () => {
-            encryptedLinkDisplay.select();
-            encryptedLinkDisplay.setSelectionRange(0, 99999);
-            navigator.clipboard
-              .writeText(encryptedLinkDisplay.value)
-              .then(() => {
-                // 暂时使用 copyFeedback 来显示二维码复制成功
-                copyFeedback.textContent = "二维码链接已复制！"; // 更新提示文本
-                copyFeedback.classList.remove("hidden");
-                setTimeout(() => {
-                  copyFeedback.classList.add("hidden");
-                  copyFeedback.textContent = "链接已复制！"; // 恢复原始提示文本
-                }, 2000);
-              })
-              .catch((err) => {
-                console.error("通过点击二维码复制失败:", err);
-                alert("复制链接失败，请手动复制。");
-              });
-          });
-          qrcodeCanvas.dataset.listenerAdded = "true"; // 标记已添加
-        }
-      } else {
-        console.error(
-          "QRCodeGenerator 对象中未找到 toCanvas 方法，或 toCanvas 不是一个函数。"
-        );
-        qrcodeContainer.textContent = "二维码生成失败。";
+      if (uploadedFiles.length === 0) {
+        if (dom.uploadArea) dom.uploadArea.classList.add("hidden");
+        return;
       }
-    } catch (error) {
-      console.error("二维码库加载或生成失败:", error);
-      qrcodeContainer.textContent = "二维码生成失败。";
-      alert("二维码生成失败：" + error.message);
-    }
 
-    // 显示弹窗并应用动画类 (保持不变)
-    successModal.classList.remove("hidden");
-    console.log(
-      "已移除 hidden 类。successModal.classList:",
-      successModal.classList
-    );
-    void successModal.offsetWidth;
-    console.log("已强制回流。");
+      if (dom.uploadArea) dom.uploadArea.classList.remove("hidden");
 
-    console.log("准备添加透明度/缩放类...");
-    successModal.classList.add("opacity-100");
-    successModalContent.classList.remove("scale-95", "opacity-0");
-    successModalContent.classList.add("scale-100", "opacity-100");
-    console.log(
-      "已添加透明度/缩放类。successModalContent.classList:",
-      successModalContent.classList
-    );
-
-    console.log("--- 弹窗显示逻辑完成 ---");
-  });
-
-  // === 弹窗功能逻辑 ===
-
-  // 复制链接功能
-  copyLinkButton.addEventListener("click", () => {
-    encryptedLinkDisplay.select(); // 选中输入框中的文本
-    encryptedLinkDisplay.setSelectionRange(0, 99999); // 适用于移动设备
-    navigator.clipboard
-      .writeText(encryptedLinkDisplay.value)
-      .then(() => {
-        copyFeedback.classList.remove("hidden");
-        setTimeout(() => {
-          copyFeedback.classList.add("hidden");
-        }, 2000); // 2秒后隐藏提示
-      })
-      .catch((err) => {
-        console.error("复制失败:", err);
-        alert("复制链接失败，请手动复制。");
-      });
-  });
-  encryptedLinkDisplay.addEventListener("click", () => {
-    encryptedLinkDisplay.select();
-    encryptedLinkDisplay.setSelectionRange(0, 99999);
-    navigator.clipboard
-      .writeText(encryptedLinkDisplay.value)
-      .then(() => {
-        copyFeedback.textContent = "链接已复制！";
-        copyFeedback.classList.remove("hidden");
-        setTimeout(() => {
-          copyFeedback.classList.add("hidden");
-        }, 2000);
-      })
-      .catch((err) => {
-        console.error("点击输入框复制失败:", err);
-        alert("复制链接失败，请手动复制。");
-      });
-  });
-
-  // 关闭弹窗功能
-  closeModalButton.addEventListener("click", () => {
-    successModal.classList.remove("opacity-100");
-    successModalContent.classList.remove("scale-100", "opacity-100");
-    successModalContent.classList.add("scale-95", "opacity-0");
-    setTimeout(() => {
-      successModal.classList.add("hidden");
-    }, 300); // 等待动画完成再隐藏
-  });
-
-  // 点击弹窗背景也可以关闭 (可选)
-  successModal.addEventListener("click", (event) => {
-    if (event.target === successModal) {
-      closeModalButton.click(); // 调用关闭按钮的点击事件
-    }
-  });
-
-  const uploadBtn = document.getElementById("upload-btn");
-  const fileInput = document.getElementById("file-input");
-  const uploadArea = document.getElementById("upload-area");
-  const fileList = document.getElementById("file-list");
-  const errorMessage = document.getElementById("error-message");
-  const errorText = document.getElementById("error-text");
-
-  const MAX_SIZE_MB = 10;
-  const MAX_FILE_SIZE = MAX_SIZE_MB * 1024 * 1024;
-
-  uploadBtn.addEventListener("click", () => {
-    fileInput.click();
-  });
-
-  fileInput.addEventListener("change", () => {
-    const files = fileInput.files;
-    fileList.innerHTML = "";
-    let hasError = false;
-
-    for (const file of files) {
-      console.log(`文件：${file.name}, 大小：${file.size / (1024 * 1024)} MB`);
-
-      if (file.size > MAX_FILE_SIZE) {
-        hasError = true;
-        errorText.textContent = `文件 "${file.name}" 超过 ${MAX_SIZE_MB}MB 大小限制`;
-        errorMessage.classList.remove("hidden");
-      } else {
+      uploadedFiles.forEach((fileInfo) => {
         const li = document.createElement("li");
-        li.textContent = `${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
-        fileList.appendChild(li);
+        li.classList.add("flex", "items-center", "justify-between", "my-1");
+        li.dataset.filename = fileInfo.name;
+
+        const fileNameSpan = document.createElement("span");
+        fileNameSpan.textContent = `${fileInfo.name} (${(fileInfo.size / 1024).toFixed(1)} KB)`;
+        li.appendChild(fileNameSpan);
+
+        const deleteButton = document.createElement("button");
+        deleteButton.type = "button";
+        deleteButton.textContent = "Delete";
+        deleteButton.classList.add(
+          "text-red-500",
+          "hover:text-red-700",
+          "font-medium",
+          "ml-4"
+        );
+
+        deleteButton.dataset.filename = fileInfo.name;
+
+        deleteButton.addEventListener("click", () => {
+          uploadedFiles = uploadedFiles.filter((f) => f.name !== fileInfo.name);
+          renderFileList();
+          if (uploadedFiles.length === 0) {
+            if (dom.fileInput) dom.fileInput.value = "";
+          }
+        });
+
+        li.appendChild(deleteButton);
+        dom.fileList.appendChild(li);
+      });
+    }
+
+    function handleFileChange() {
+      const files = dom.fileInput.files;
+      let hasError = false;
+
+      if (files.length === 0) {
+        if (uploadedFiles.length === 0 && dom.fileInput) {
+          dom.fileInput.value = "";
+        }
+        return;
+      }
+
+      uploadedFiles = [];
+
+      for (const file of files) {
+        if (file.size > MAX_FILE_SIZE) {
+          hasError = true;
+          if (dom.errorText)
+            dom.errorText.textContent = `文件 "${file.name}" 超过 ${MAX_SIZE_MB}MB 大小限制`;
+          if (dom.errorMessageContainer)
+            dom.errorMessageContainer.classList.remove("hidden");
+          break;
+        }
+        uploadedFiles.push(file);
+      }
+
+      if (hasError) {
+        if (dom.uploadArea) dom.uploadArea.classList.add("hidden");
+        if (dom.fileInput) dom.fileInput.value = "";
+      } else {
+        if (dom.errorMessageContainer)
+          dom.errorMessageContainer.classList.add("hidden");
+        renderFileList();
       }
     }
 
-    if (!hasError) {
-      errorMessage.classList.add("hidden");
+    // --- 创建笔记和弹窗逻辑 ---
+
+    async function handleCreateNote() {
+      console.log("创建笔记按钮被点击了！");
+
+      const noteContent = dom.noteContentInput.value.trim();
+      if (!noteContent) {
+        alert("笔记内容不能为空！");
+        return;
+      }
+
+      if (!dom.errorMessageContainer.classList.contains("hidden")) {
+        alert("请解决文件上传错误后重试。");
+        return;
+      }
+
+      dom.createNoteButton.disabled = true;
+
+      const notePassword = dom.notePasswordInput.value;
+      const deleteAfterReading = dom.deleteAfterReadingCheckbox.checked;
+      const newNoteId = generateUniqueId();
+      const encryptedLink = `${window.location.origin}/note/${newNoteId}`;
+
+      try {
+        // 模拟后端请求，这里可以添加真实的 fetch 请求
+        // 假设成功，直接执行后续逻辑
+
+        // 重置表单
+        dom.noteContentInput.value = "";
+        dom.notePasswordInput.value = "";
+        dom.deleteAfterReadingCheckbox.checked = false;
+        uploadedFiles = [];
+        if (dom.fileInput) dom.fileInput.value = "";
+        renderFileList();
+
+        // 重置过期时间选择按钮样式
+        dom.expirationOptionsContainer
+          .querySelectorAll("button")
+          .forEach((btn) => {
+            btn.classList.remove("bg-sky-500/60", "text-white");
+            btn.classList.add(
+              "bg-gray-100",
+              "text-gray-700",
+              "hover:bg-gray-200"
+            );
+            if (btn.dataset.value === "1hour") {
+              btn.classList.add("bg-sky-500/60", "text-white");
+              btn.classList.remove(
+                "bg-gray-100",
+                "text-gray-700",
+                "hover:bg-gray-200"
+              );
+            }
+          });
+        selectedExpiration = "1hour";
+        dom.createNoteButton.disabled = true;
+
+        // 更新弹窗内容并显示
+        dom.encryptedLinkDisplay.value = encryptedLink;
+        if (dom.qrcodeCanvas) {
+          dom.qrcodeCanvas
+            .getContext("2d")
+            .clearRect(0, 0, dom.qrcodeCanvas.width, dom.qrcodeCanvas.height);
+          try {
+            const QRCodeGeneratorObj = await waitForGlobal("QRCodeGenerator");
+            if (typeof QRCodeGeneratorObj.toCanvas === "function") {
+              await QRCodeGeneratorObj.toCanvas(
+                dom.qrcodeCanvas,
+                encryptedLink,
+                {
+                  width: 128,
+                  errorCorrectionLevel: "H",
+                }
+              );
+              if (!dom.qrcodeCanvas.dataset.listenerAdded) {
+                dom.qrcodeCanvas.style.cursor = "pointer"; // 鼠标悬停时显示手型
+                dom.qrcodeCanvas.addEventListener("click", () => {
+                  dom.encryptedLinkDisplay.select();
+                  dom.encryptedLinkDisplay.setSelectionRange(0, 99999);
+                  navigator.clipboard
+                    .writeText(dom.encryptedLinkDisplay.value)
+                    .then(() => {
+                      dom.copyFeedback.textContent = "二维码链接已复制！";
+                      dom.copyFeedback.classList.remove("hidden");
+                      setTimeout(() => {
+                        dom.copyFeedback.classList.add("hidden");
+                        dom.copyFeedback.textContent = "链接已复制！"; // 恢复原始提示文本
+                      }, 2000);
+                    })
+                    .catch((err) => {
+                      console.error("通过点击二维码复制失败:", err);
+                      alert("复制链接失败，请手动复制。");
+                    });
+                });
+                dom.qrcodeCanvas.dataset.listenerAdded = "true"; // 标记已添加，避免重复绑定
+              }
+            } else {
+              if (dom.qrcodeContainer)
+                dom.qrcodeContainer.textContent = "二维码生成失败。";
+            }
+          } catch (error) {
+            console.error("二维码库加载或生成失败:", error);
+            if (dom.qrcodeContainer)
+              dom.qrcodeContainer.textContent = "二维码生成失败。";
+            alert("二维码生成失败：" + error.message);
+          }
+        }
+
+        dom.successModal.classList.remove("hidden");
+        void dom.successModal.offsetWidth;
+        dom.successModal.classList.add("opacity-100");
+        dom.successModalContent.classList.remove("scale-95", "opacity-0");
+        dom.successModalContent.classList.add("scale-100", "opacity-100");
+      } catch (error) {
+        console.error("创建笔记失败:", error);
+        alert(`创建笔记失败: ${error.message}`);
+      } finally {
+        dom.createNoteButton.disabled = false;
+      }
     }
 
-    if (files.length > 0) {
-      uploadArea.classList.remove("hidden");
+    function handleCopyLink() {
+      dom.encryptedLinkDisplay.select();
+      dom.encryptedLinkDisplay.setSelectionRange(0, 99999);
+      navigator.clipboard
+        .writeText(dom.encryptedLinkDisplay.value)
+        .then(() => {
+          dom.copyFeedback.textContent = "链接已复制！";
+          dom.copyFeedback.classList.remove("hidden");
+          setTimeout(() => dom.copyFeedback.classList.add("hidden"), 2000);
+        })
+        .catch((err) => {
+          console.error("复制失败:", err);
+          alert("复制链接失败，请手动复制。");
+        });
     }
-  });
+
+    function handleCloseModal() {
+      dom.successModal.classList.remove("opacity-100");
+      dom.successModalContent.classList.remove("scale-100", "opacity-100");
+      dom.successModalContent.classList.add("scale-95", "opacity-0");
+      setTimeout(() => dom.successModal.classList.add("hidden"), 300);
+    }
+
+    // --- 初始化函数 ---
+
+    function initEventListeners() {
+      if (dom.notePasswordInput) {
+        dom.notePasswordInput.addEventListener("input", () => {
+          const value = dom.notePasswordInput.value;
+          if (typeof zxcvbn !== "undefined") {
+            const result = zxcvbn(value);
+            dom.passwordStrengthText.textContent = value
+              ? `密码强度：${strengthLabels[result.score]}`
+              : "";
+            strengthColors.forEach((c) =>
+              dom.passwordStrengthFill.classList.remove(c)
+            );
+            if (value) {
+              dom.passwordStrengthFill.classList.add(
+                strengthColors[result.score]
+              );
+              dom.passwordStrengthFill.style.width = `${(result.score + 1) * 20}%`;
+            } else {
+              dom.passwordStrengthFill.style.width = "0%";
+            }
+          }
+        });
+        if (dom.notePasswordInput.value) {
+          dom.notePasswordInput.dispatchEvent(new Event("input"));
+        }
+      }
+
+      if (dom.togglePasswordButton) {
+        dom.togglePasswordButton.addEventListener("click", () => {
+          showPassword = !showPassword;
+          dom.notePasswordInput.type = showPassword ? "text" : "password";
+          dom.eyeOpenIcon.classList.toggle("hidden", !showPassword);
+          dom.eyeClosedIcon.classList.toggle("hidden", showPassword);
+        });
+      }
+
+      if (dom.generatePasswordButton) {
+        dom.generatePasswordButton.addEventListener("click", () => {
+          const chars =
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+";
+          let password = "";
+          for (let i = 0; i < 15; i++) {
+            password += chars.charAt(Math.floor(Math.random() * chars.length));
+          }
+          dom.notePasswordInput.value = password;
+          dom.notePasswordInput.dispatchEvent(
+            new Event("input", { bubbles: true, cancelable: true })
+          );
+        });
+      }
+
+      if (dom.expirationOptionsContainer) {
+        dom.expirationOptionsContainer.addEventListener("click", (event) => {
+          const targetButton = event.target.closest("button[data-value]");
+          if (targetButton) {
+            dom.expirationOptionsContainer
+              .querySelectorAll("button")
+              .forEach((btn) => {
+                btn.classList.remove("bg-sky-500/60", "text-white");
+                btn.classList.add(
+                  "bg-gray-100",
+                  "text-gray-700",
+                  "hover:bg-gray-200"
+                );
+              });
+            targetButton.classList.add("bg-sky-500/60", "text-white");
+            targetButton.classList.remove(
+              "bg-gray-100",
+              "text-gray-700",
+              "hover:bg-gray-200"
+            );
+            selectedExpiration = targetButton.dataset.value;
+          }
+        });
+      }
+
+      if (dom.noteContentInput && dom.createNoteButton) {
+        dom.noteContentInput.addEventListener("input", () => {
+          dom.createNoteButton.disabled =
+            dom.noteContentInput.value.trim() === "";
+        });
+        dom.createNoteButton.disabled =
+          dom.noteContentInput.value.trim() === "";
+      }
+
+      if (dom.uploadBtn && dom.fileInput) {
+        dom.uploadBtn.addEventListener("click", () => dom.fileInput.click());
+        dom.fileInput.addEventListener("change", handleFileChange);
+      }
+
+      if (dom.createNoteButton) {
+        dom.createNoteButton.addEventListener("click", handleCreateNote);
+      }
+
+      if (dom.copyLinkButton) {
+        dom.copyLinkButton.addEventListener("click", handleCopyLink);
+      }
+
+      if (dom.encryptedLinkDisplay) {
+        dom.encryptedLinkDisplay.addEventListener("click", handleCopyLink);
+      }
+
+      if (dom.closeModalButton) {
+        dom.closeModalButton.addEventListener("click", handleCloseModal);
+      }
+
+      if (dom.successModal) {
+        dom.successModal.addEventListener("click", (event) => {
+          if (event.target === dom.successModal) {
+            handleCloseModal();
+          }
+        });
+      }
+    }
+
+    // 页面加载时执行初始化
+    document.addEventListener("DOMContentLoaded", initEventListeners);
+  }
 </script>
