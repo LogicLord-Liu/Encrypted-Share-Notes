@@ -3,13 +3,13 @@
   "type": "module",
   "version": "0.0.1",
   "scripts": {
-    "dev": "astro dev",
+    "dev": "astro dev --host",
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro"
   },
   "dependencies": {
-    "@astrojs/cloudflare": "^12.6.1",
+    "@astrojs/cloudflare": "^12.6.2",
     "@astrojs/react": "^4.3.0",
     "@tailwindcss/vite": "^4.1.11",
     "@types/react": "^19.1.8",
@@ -22,6 +22,7 @@
     "zxcvbn": "^4.4.2"
   },
   "devDependencies": {
-    "sass-embedded": "^1.89.2"
+    "sass-embedded": "^1.89.2",
+    "wrangler": "^4.27.0"
   }
 }
