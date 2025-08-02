@@ -6,7 +6,7 @@ import Footer from "../components/Footer";
 import MainContent from "../components/NoteEditor.astro";
 ---
 
-<Layout title="安全分享 - Enclosed">
+<Layout title="安全分享 - Transcrypt">
   <Header client:load />
   <MainContent client:load />
   <Footer client:load />
@@ -272,6 +272,22 @@ import MainContent from "../components/NoteEditor.astro";
           })),
           createdAt: new Date().toISOString(),
         };
+
+        // 发送 POST 请求到 Pages Function
+        // const response = await fetch("/api/note", {
+        //   method: "POST",
+        //   headers: { "Content-Type": "application/json" },
+        //   body: JSON.stringify(newNote),
+        // });
+
+        // if (!response.ok) {
+        //   throw new Error(
+        //     `Failed to save note to the backend: ${response.statusText}`
+        //   );
+        // }
+
+        // const result = await response.json();
+        // console.log("笔记已成功保存到 KV:", result);
 
         // 9. 将新笔记保存到 localStorage
         let notes = JSON.parse(localStorage.getItem(NOTES_STORAGE_KEY) || "[]");
