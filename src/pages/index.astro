@@ -62,7 +62,6 @@ import MainContent from "../components/NoteEditor.astro";
     };
 
     // --- 辅助函数 ---
-
     function generateUniqueId() {
       return (
         Math.random().toString(36).substring(2, 15) +
@@ -89,17 +88,15 @@ import MainContent from "../components/NoteEditor.astro";
     }
 
     // --- 文件上传和删除逻辑 ---
-
     function renderFileList() {
-      if (!dom.fileList) return;
+      if (!dom.fileList || !dom.uploadArea) return;
       dom.fileList.innerHTML = "";
 
       if (uploadedFiles.length === 0) {
-        if (dom.uploadArea) dom.uploadArea.classList.add("hidden");
+        dom.uploadArea.classList.add("hidden");
         return;
       }
-
-      if (dom.uploadArea) dom.uploadArea.classList.remove("hidden");
+      dom.uploadArea.classList.remove("hidden");
 
       uploadedFiles.forEach((fileInfo) => {
         const li = document.createElement("li");
@@ -119,14 +116,11 @@ import MainContent from "../components/NoteEditor.astro";
           "font-medium",
           "ml-4"
         );
-
-        deleteButton.dataset.filename = fileInfo.name;
-
         deleteButton.addEventListener("click", () => {
           uploadedFiles = uploadedFiles.filter((f) => f.name !== fileInfo.name);
           renderFileList();
-          if (uploadedFiles.length === 0) {
-            if (dom.fileInput) dom.fileInput.value = "";
+          if (uploadedFiles.length === 0 && dom.fileInput) {
+            dom.fileInput.value = "";
           }
         });
 
@@ -137,41 +131,38 @@ import MainContent from "../components/NoteEditor.astro";
 
     function handleFileChange() {
       const files = dom.fileInput.files;
-      let hasError = false;
-
-      if (files.length === 0) {
-        if (uploadedFiles.length === 0 && dom.fileInput) {
-          dom.fileInput.value = "";
+      if (!files || files.length === 0) {
+        if (uploadedFiles.length === 0) {
+          if (dom.fileInput) dom.fileInput.value = "";
         }
         return;
       }
 
-      uploadedFiles = [];
-
-      for (const file of files) {
+      let hasError = false;
+      const newFiles = Array.from(files).filter((file) => {
         if (file.size > MAX_FILE_SIZE) {
           hasError = true;
-          if (dom.errorText)
-            dom.errorText.textContent = `文件 "${file.name}" 超过 ${MAX_SIZE_MB}MB 大小限制`;
-          if (dom.errorMessageContainer)
-            dom.errorMessageContainer.classList.remove("hidden");
-          break;
+          return false;
         }
-        uploadedFiles.push(file);
-      }
+        return true;
+      });
 
       if (hasError) {
+        if (dom.errorText)
+          dom.errorText.textContent = `部分文件超过 ${MAX_SIZE_MB}MB 大小限制`;
+        if (dom.errorMessageContainer)
+          dom.errorMessageContainer.classList.remove("hidden");
         if (dom.uploadArea) dom.uploadArea.classList.add("hidden");
         if (dom.fileInput) dom.fileInput.value = "";
       } else {
         if (dom.errorMessageContainer)
           dom.errorMessageContainer.classList.add("hidden");
+        uploadedFiles = newFiles;
         renderFileList();
       }
     }
 
     // --- 创建笔记和弹窗逻辑 ---
-
     async function handleCreateNote() {
       console.log("创建笔记按钮被点击了！");
 
@@ -190,20 +181,90 @@ import MainContent from "../components/NoteEditor.astro";
 
       const notePassword = dom.notePasswordInput.value;
       const deleteAfterReading = dom.deleteAfterReadingCheckbox.checked;
-      const newNoteId = generateUniqueId();
-      const encryptedLink = `${window.location.origin}/note/${newNoteId}`;
 
       try {
-        // 模拟后端请求，这里可以添加真实的 fetch 请求
-        // 假设成功，直接执行后续逻辑
-        
-        // **新增或修改的笔记数据对象**
+        // 1. 生成一个用于加密笔记内容的随机密钥 (AES-GCM)
+        const cryptoKey = await window.crypto.subtle.generateKey(
+          { name: "AES-GCM", length: 256 },
+          true,
+          ["encrypt", "decrypt"]
+        );
+
+        // 2. 将密钥导出为可存储的格式（ArrayBuffer）
+        const exportedKey = await window.crypto.subtle.exportKey(
+          "raw",
+          cryptoKey
+        );
+
+        // 3. 将笔记内容转换为 ArrayBuffer
+        const encoder = new TextEncoder();
+        const encodedContent = encoder.encode(noteContent);
+
+        // 4. 生成一个随机的初始化向量 (IV)
+        const iv = window.crypto.getRandomValues(new Uint8Array(12));
+
+        // 5. 使用密钥和 IV 加密笔记内容
+        const encryptedContent = await window.crypto.subtle.encrypt(
+          { name: "AES-GCM", iv: iv },
+          cryptoKey,
+          encodedContent
+        );
+
+        // 6. 将加密后的内容和 IV 转换为 Base64 字符串
+        const encryptedContentBase64 = btoa(
+          String.fromCharCode(...new Uint8Array(encryptedContent))
+        );
+        const ivBase64 = btoa(String.fromCharCode(...iv));
+        let finalKeyBase64 = btoa(
+          String.fromCharCode(...new Uint8Array(exportedKey))
+        );
+
+        // 7. 如果设置了密码，则使用密码加密密钥
+        if (notePassword) {
+          const passwordKey = await window.crypto.subtle.importKey(
+            "raw",
+            encoder.encode(notePassword),
+            { name: "PBKDF2" },
+            false,
+            ["deriveKey"]
+          );
+
+          const derivedPasswordKey = await window.crypto.subtle.deriveKey(
+            {
+              name: "PBKDF2",
+              salt: iv,
+              iterations: 100000,
+              hash: "SHA-256",
+            },
+            passwordKey,
+            { name: "AES-GCM", length: 256 },
+            true,
+            ["encrypt", "decrypt"]
+          );
+
+          const encryptedKey = await window.crypto.subtle.encrypt(
+            { name: "AES-GCM", iv: iv },
+            derivedPasswordKey,
+            exportedKey
+          );
+
+          finalKeyBase64 = btoa(
+            String.fromCharCode(...new Uint8Array(encryptedKey))
+          );
+        }
+
+        // 8. 准备存储到 localStorage 的数据
+        const newNoteId = generateUniqueId();
+        const encryptedLink = `${window.location.origin}/note/${newNoteId}`;
+
         const newNote = {
           id: newNoteId,
-          content: noteContent,
-          password: notePassword,
+          content: encryptedContentBase64, // ⭐ 修复点1: 使用加密后的内容
+          key: finalKeyBase64, // ⭐ 修复点2: 保存加密后的密钥
+          iv: ivBase64,
           expiration: selectedExpiration,
           deleteAfterReading: deleteAfterReading,
+          hasPassword: !!notePassword, // ⭐ 修复点3: 标记是否有密码，但不存储原始密码
           files: uploadedFiles.map((f) => ({
             name: f.name,
             size: f.size,
@@ -212,16 +273,14 @@ import MainContent from "../components/NoteEditor.astro";
           createdAt: new Date().toISOString(),
         };
 
-        // **核心修改点：将新笔记保存到 localStorage**
+        // 9. 将新笔记保存到 localStorage
         let notes = JSON.parse(localStorage.getItem(NOTES_STORAGE_KEY) || "[]");
         notes.push(newNote);
         localStorage.setItem(NOTES_STORAGE_KEY, JSON.stringify(notes));
 
         console.log("创建笔记并保存到 localStorage：", newNote);
 
-
-
-        // 重置表单
+        // 10. 重置表单
         dom.noteContentInput.value = "";
         dom.notePasswordInput.value = "";
         dom.deleteAfterReadingCheckbox.checked = false;
@@ -249,9 +308,11 @@ import MainContent from "../components/NoteEditor.astro";
             }
           });
         selectedExpiration = "1hour";
-        dom.createNoteButton.disabled = true;
 
-        // 更新弹窗内容并显示
+        // ⭐ 修复点4: 重新启用按钮（尽管在finally中已经处理了）
+        dom.createNoteButton.disabled = false;
+
+        // 11. 更新弹窗内容并显示
         dom.encryptedLinkDisplay.value = encryptedLink;
         if (dom.qrcodeCanvas) {
           dom.qrcodeCanvas
@@ -269,7 +330,7 @@ import MainContent from "../components/NoteEditor.astro";
                 }
               );
               if (!dom.qrcodeCanvas.dataset.listenerAdded) {
-                dom.qrcodeCanvas.style.cursor = "pointer"; // 鼠标悬停时显示手型
+                dom.qrcodeCanvas.style.cursor = "pointer";
                 dom.qrcodeCanvas.addEventListener("click", () => {
                   dom.encryptedLinkDisplay.select();
                   dom.encryptedLinkDisplay.setSelectionRange(0, 99999);
@@ -280,7 +341,7 @@ import MainContent from "../components/NoteEditor.astro";
                       dom.copyFeedback.classList.remove("hidden");
                       setTimeout(() => {
                         dom.copyFeedback.classList.add("hidden");
-                        dom.copyFeedback.textContent = "链接已复制！"; // 恢复原始提示文本
+                        dom.copyFeedback.textContent = "链接已复制！";
                       }, 2000);
                     })
                     .catch((err) => {
@@ -288,7 +349,7 @@ import MainContent from "../components/NoteEditor.astro";
                       alert("复制链接失败，请手动复制。");
                     });
                 });
-                dom.qrcodeCanvas.dataset.listenerAdded = "true"; // 标记已添加，避免重复绑定
+                dom.qrcodeCanvas.dataset.listenerAdded = "true";
               }
             } else {
               if (dom.qrcodeContainer)
@@ -315,7 +376,10 @@ import MainContent from "../components/NoteEditor.astro";
       }
     }
 
+    // --- 事件处理函数 ---
+
     function handleCopyLink() {
+      if (!dom.encryptedLinkDisplay || !dom.copyFeedback) return;
       dom.encryptedLinkDisplay.select();
       dom.encryptedLinkDisplay.setSelectionRange(0, 99999);
       navigator.clipboard
@@ -332,6 +396,7 @@ import MainContent from "../components/NoteEditor.astro";
     }
 
     function handleCloseModal() {
+      if (!dom.successModal || !dom.successModalContent) return;
       dom.successModal.classList.remove("opacity-100");
       dom.successModalContent.classList.remove("scale-100", "opacity-100");
       dom.successModalContent.classList.add("scale-95", "opacity-0");
@@ -341,10 +406,15 @@ import MainContent from "../components/NoteEditor.astro";
     // --- 初始化函数 ---
 
     function initEventListeners() {
+      // 密码强度和生成
       if (dom.notePasswordInput) {
         dom.notePasswordInput.addEventListener("input", () => {
           const value = dom.notePasswordInput.value;
-          if (typeof zxcvbn !== "undefined") {
+          if (
+            typeof zxcvbn !== "undefined" &&
+            dom.passwordStrengthText &&
+            dom.passwordStrengthFill
+          ) {
             const result = zxcvbn(value);
             dom.passwordStrengthText.textContent = value
               ? `密码强度：${strengthLabels[result.score]}`
@@ -366,8 +436,12 @@ import MainContent from "../components/NoteEditor.astro";
           dom.notePasswordInput.dispatchEvent(new Event("input"));
         }
       }
-
-      if (dom.togglePasswordButton) {
+      if (
+        dom.togglePasswordButton &&
+        dom.notePasswordInput &&
+        dom.eyeOpenIcon &&
+        dom.eyeClosedIcon
+      ) {
         dom.togglePasswordButton.addEventListener("click", () => {
           showPassword = !showPassword;
           dom.notePasswordInput.type = showPassword ? "text" : "password";
@@ -375,8 +449,7 @@ import MainContent from "../components/NoteEditor.astro";
           dom.eyeClosedIcon.classList.toggle("hidden", showPassword);
         });
       }
-
-      if (dom.generatePasswordButton) {
+      if (dom.generatePasswordButton && dom.notePasswordInput) {
         dom.generatePasswordButton.addEventListener("click", () => {
           const chars =
             "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+";
@@ -391,6 +464,7 @@ import MainContent from "../components/NoteEditor.astro";
         });
       }
 
+      // 过期时间选择
       if (dom.expirationOptionsContainer) {
         dom.expirationOptionsContainer.addEventListener("click", (event) => {
           const targetButton = event.target.closest("button[data-value]");
@@ -416,36 +490,31 @@ import MainContent from "../components/NoteEditor.astro";
         });
       }
 
+      // 按钮禁用状态和事件
       if (dom.noteContentInput && dom.createNoteButton) {
-        dom.noteContentInput.addEventListener("input", () => {
+        const toggleButtonState = () => {
           dom.createNoteButton.disabled =
             dom.noteContentInput.value.trim() === "";
-        });
-        dom.createNoteButton.disabled =
-          dom.noteContentInput.value.trim() === "";
+        };
+        dom.noteContentInput.addEventListener("input", toggleButtonState);
+        toggleButtonState();
       }
-
       if (dom.uploadBtn && dom.fileInput) {
         dom.uploadBtn.addEventListener("click", () => dom.fileInput.click());
         dom.fileInput.addEventListener("change", handleFileChange);
       }
-
       if (dom.createNoteButton) {
         dom.createNoteButton.addEventListener("click", handleCreateNote);
       }
-
       if (dom.copyLinkButton) {
         dom.copyLinkButton.addEventListener("click", handleCopyLink);
       }
-
       if (dom.encryptedLinkDisplay) {
         dom.encryptedLinkDisplay.addEventListener("click", handleCopyLink);
       }
-
       if (dom.closeModalButton) {
         dom.closeModalButton.addEventListener("click", handleCloseModal);
       }
-
       if (dom.successModal) {
         dom.successModal.addEventListener("click", (event) => {
           if (event.target === dom.successModal) {
