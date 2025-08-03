@@ -77,6 +77,8 @@ Easily encrypt your content in the browser and share it via a unique link or QR 
   - `Variable name`：input **NOTES_KV**.
   - `KV namespace`：Select the `ENCLOSED_NOTES` namespace you created earlier(If you haven't created one yet, you'll need to create one.).
 
+> 📌 At this point, your encrypted note service is deployed! You can use the page to publish, share, and self-destruct encrypted content.
+
 # 📄 License
 
 EPL-2.0 License © 2025 [Vannik-Liu](https://github.com/LogicLord-Liu/)
