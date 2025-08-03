@@ -46,6 +46,53 @@
 - [ ] 🔒生成匿名留言链接访客可以给你发送一条加密内容（你有密码才能看）
 - [ ] 🛡️防爆破机制多次尝试错误后 IP 封锁（可结合 Cloudflare Turnstile 验证）
 
+## 开始部署服务
+
+### 环境准备
+
+- Cloudflare 账户
+- GitHub 账户
+- 自定义域名（可选）
+
+---
+
+### 第一步：部署到 Cloudflare Pages
+
+1. Fork 官方 GitHub 仓库：[LogicLord-Liu/Encrypted-Share-Notes](https://github.com/LogicLord-Liu/Encrypted-Share-Notes) 到你的 GitHub 账户。
+2. 登录 [Cloudflare](https://dash.cloudflare.com/)，进入 **Workers & Pages**。
+3. 点击 **创建应用**，选择 **Pages**。
+4. 连接你的 GitHub 账号，选择刚刚 Fork 的项目。
+5. 配置构建设置：
+   - **框架预设**：选择 `Astro`
+   - **构建命令**：`npm run build`
+   - **输出目录**：`dist`
+6. 点击 **保存并部署**，Cloudflare Pages 会自动构建并部署该项目。
+
+---
+
+### 第二步：绑定自定义域名（可选）
+
+1. 在 Cloudflare 仪表盘中找到你的 Pages 项目，进入项目详情。
+2. 点击左侧菜单中的 **Custom domains**，选择 **Set up a custom domain**。
+3. 输入你的自定义子域名（如 `note.your-domain.com`）。
+4. Cloudflare 会提供一个 `CNAME` 记录，添加到你的域名 DNS 中。如果域名本身由 Cloudflare 管理，这一步会自动完成。
+5. 等待几分钟至几小时，Cloudflare 会验证并启用你的自定义域名。
+
+---
+
+### 第三步：绑定 KV 存储空间
+
+1. 在 Cloudflare Pages 项目中，点击左侧 **Settings** 设置页。
+2. 进入 `Functions` -> `KV namespaces`。
+3. 点击 **Add binding** 添加绑定。
+4. 填写信息：
+   - `变量名（Variable name）`：输入 **NOTES_KV**
+   - `KV 命名空间（KV namespace）`：选择你之前创建的 `ENCLOSED_NOTES` 命名空间（如果还没有，需要先手动创建一个）。
+
+---
+
+> 📌 至此，你的加密笔记服务就部署完成了！可以使用页面进行加密内容发布、分享、阅后即焚等功能。
+
 # 📄 License
 
 EPL-2.0 License © 2025 [Vannik-Liu](https://github.com/LogicLord-Liu/)

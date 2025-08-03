@@ -46,6 +46,37 @@ Easily encrypt your content in the browser and share it via a unique link or QR 
 - [ ] 🔒Visitors can send encrypted messages via anonymous page
 - [ ] 🛡️ Anti-brute-force protection (with Cloudflare Turnstile)
 
+## Began to Deploy Service
+
+- Environment Request
+  - Cloudflare Account
+  - GitHub Account
+  - Custom domains (optional)
+
+- Step One
+  - Fork [offical GiHub Repository](https://github.com/LogicLord-Liu/Encrypted-Share-Notes) to your account.
+  - Login in Cloudflare and connect GitHub.
+  - Ento `Workes & Pages`，press `Create application`，Select `Pages`.
+  - Follow the instructions to connect to your Git repository and select your project
+  - **Configuration construction settings**:
+    - **Framework preset**：Select `Astro`.
+    - **Build command**：`npm run build`.
+    - **Build output directory**：`dist`.
+  - Press `Save and Deploy`.CLoudflare Pages will auto build and run your project.
+
+- Step Two
+  - CLoudflare dashboard，find your project，find `Custom domains`selection.
+  - Press `Set up a custom domain`，input your custom domains(Such as `note.my-domain.com`).
+  - Cloudflare will provide you with a `CNAME` record. Add this record in your DNS manager. If your domain is also managed by Cloudflare, it will be added automatically for you.
+  - Wait several minutes to hours for Cloudflare to verify and activate your custom domain.
+
+- Step Three
+  - Ento `Setting`.
+  - Navigate to `Functions` -> `KV namespaces`.
+  - Press `Add binding`.
+  - `Variable name`：input **NOTES_KV**.
+  - `KV namespace`：Select the `ENCLOSED_NOTES` namespace you created earlier(If you haven't created one yet, you'll need to create one.).
+
 # 📄 License
 
 EPL-2.0 License © 2025 [Vannik-Liu](https://github.com/LogicLord-Liu/)
