@@ -3,8 +3,6 @@ import Layout from "../../layouts/Layout.astro";
 
 // 在服务器端获取路由参数
 const { id } = Astro.params;
-
-// 这里的服务器端变量只是占位符，实际加载由客户端 JS 处理
 ---
 
 <Layout title="查看笔记 - Enclosed">
@@ -32,7 +30,8 @@ const { id } = Astro.params;
     const noteDisplayArea = document.getElementById("note-display-area");
     const passwordFormContainer = document.getElementById(
       "password-form-container"
-    );
+    ); // 简单判断是否为生产环境。如果域名不是 localhost，则认为是生产环境。
+    const isProduction = window.location.hostname !== "localhost";
 
     function displayError(message) {
       if (!noteDisplayArea) return;
@@ -40,16 +39,47 @@ const { id } = Astro.params;
         <div class="text-red-500 font-medium text-center">加载笔记失败</div>
         <p class="text-red-500 text-center mt-2">${message}</p>
       `;
-    }
+    } // 根据环境和解密后的数据渲染笔记内容和文件列表
 
-    function displayNote(note) {
+    function renderNoteContent(note, decryptedContent, decryptedFiles = []) {
       if (!noteDisplayArea) return;
 
-      const markdownContent = note.content;
+      let fileListHtml = "";
+      if (note.files && note.files.length > 0) {
+        if (isProduction) {
+          // 生产环境下，使用服务器端直接下载链接
+          fileListHtml = `
+            <div class="mt-4">
+              <p class="font-medium">附件:</p>
+              <ul class="list-disc list-inside mt-1 mx-auto text-left w-fit">
+                ${note.files
+            .map(
+              (file) =>
+                `<li><a href="/api/file/${note.id}/${file.fileId}" download="${file.name}" class="text-sky-600 hover:underline">${file.name}</a></li>`
+            )
+            .join("")}
+              </ul>
+            </div>`;
+        } else {
+          // 本地开发环境下，使用 Blob URL
+          fileListHtml = `
+            <div class="mt-4">
+              <p class="font-medium">附件:</p>
+              <ul class="list-disc list-inside mt-1 mx-auto text-left w-fit">
+                ${decryptedFiles
+            .map(
+              (file) =>
+                `<li><a href="${file.url}" download="${file.name}" class="text-sky-600 hover:underline">${file.name} (${(file.size / 1024).toFixed(1)} KB)</a></li>`
+            )
+            .join("")}
+              </ul>
+            </div>`;
+        }
+      }
 
       noteDisplayArea.innerHTML = `
         <article class="prose lg:prose-lg mx-auto text-left break-all whitespace-pre-wrap">
-          <p>${markdownContent}</p>
+          <p>${decryptedContent}</p>
         </article>
         <div class="mt-8 pt-4 border-t border-gray-200 text-center text-sm text-gray-500">
           <p>创建于: ${new Date(note.createdAt).toLocaleString()}</p>
@@ -59,43 +89,58 @@ const { id } = Astro.params;
           ? '<p class="text-red-500">此笔记将在首次阅读后被删除。</p>'
           : ""
       }
-          ${
-        note.files && note.files.length > 0
-          ? `
-              <div class="mt-4">
-                <p class="font-medium">附件:</p>
-                <ul class="list-disc list-inside mt-1 mx-auto text-left w-fit">
-                  ${note.files
-              .map(
-                (file) =>
-                  `<li>${file.name} (${(file.size / 1024).toFixed(1)} KB)</li>`
-              )
-              .join("")}
-                </ul>
-              </div>
-              `
-          : ""
-      }
+          ${fileListHtml}
         </div>
       `;
-      // 如果笔记显示成功，清除密码表单
       if (passwordFormContainer) {
         passwordFormContainer.innerHTML = "";
         passwordFormContainer.classList.add("hidden");
       }
-    }
+    } // 新增: 用于本地开发环境的文件解密函数
+
+    async function decryptFiles(files, cryptoKey, ivBuffer) {
+      const decryptedFiles = await Promise.all(
+        files.map(async (file) => {
+          try {
+            const encryptedContentBuffer = Uint8Array.from(
+              atob(file.data),
+              (c) => c.charCodeAt(0)
+            );
+            const decryptedContent = await window.crypto.subtle.decrypt(
+              { name: "AES-GCM", iv: ivBuffer },
+              cryptoKey,
+              encryptedContentBuffer
+            );
+            const blob = new Blob([decryptedContent], { type: file.type });
+            const url = URL.createObjectURL(blob);
+            return {
+              name: file.name,
+              size: file.size,
+              type: file.type,
+              url: url,
+            };
+          } catch (err) {
+            console.error(`文件 ${file.name} 解密失败:`, err);
+            return {
+              name: `文件 ${file.name} (解密失败)`,
+              size: 0,
+              type: "text/plain",
+              url: "#",
+            };
+          }
+        })
+      );
+      return decryptedFiles;
+    } // 解密笔记文本内容的函数
 
     async function decryptNote(note) {
-      // ... (解密逻辑保持不变)
       if (!note.key || !note.iv || !note.content) {
         throw new Error("笔记数据不完整，无法解密。");
       }
-
       const keyBase64 = note.key;
       const ivBase64 = note.iv;
       const encryptedContentBase64 = note.content;
-      const notePassword = note.password || null; // 将 Base64 字符串转换为 ArrayBuffer
-
+      const notePassword = note.password || null;
       const keyBuffer = Uint8Array.from(atob(keyBase64), (c) =>
         c.charCodeAt(0)
       );
@@ -104,14 +149,11 @@ const { id } = Astro.params;
         atob(encryptedContentBase64),
         (c) => c.charCodeAt(0)
       );
-
-      let finalKeyBuffer = keyBuffer; // 如果有密码，先用密码解密笔记密钥
-
+      let finalKeyBuffer = keyBuffer;
       if (note.hasPassword) {
         if (!notePassword) {
           throw new Error("此笔记受密码保护，请输入密码。");
         }
-
         const encoder = new TextEncoder();
         const passwordKey = await window.crypto.subtle.importKey(
           "raw",
@@ -120,7 +162,6 @@ const { id } = Astro.params;
           false,
           ["deriveKey"]
         );
-
         const derivedPasswordKey = await window.crypto.subtle.deriveKey(
           {
             name: "PBKDF2",
@@ -130,10 +171,9 @@ const { id } = Astro.params;
           },
           passwordKey,
           { name: "AES-GCM", length: 256 },
-          false,
-          ["decrypt"]
+          true,
+          ["encrypt", "decrypt"]
         );
-
         try {
           finalKeyBuffer = await window.crypto.subtle.decrypt(
             { name: "AES-GCM", iv: ivBuffer },
@@ -144,8 +184,7 @@ const { id } = Astro.params;
           console.error("解密密钥失败:", err);
           throw new Error("密码错误或解密密钥失败。");
         }
-      } // 使用最终的密钥解密笔记内容
-
+      }
       const cryptoKey = await window.crypto.subtle.importKey(
         "raw",
         finalKeyBuffer,
@@ -153,26 +192,20 @@ const { id } = Astro.params;
         true,
         ["decrypt"]
       );
-
       const decryptedContent = await window.crypto.subtle.decrypt(
-        {
-          name: "AES-GCM",
-          iv: ivBuffer,
-        },
+        { name: "AES-GCM", iv: ivBuffer },
         cryptoKey,
         encryptedContentBuffer
       );
-
       const decoder = new TextDecoder();
-      return decoder.decode(decryptedContent);
-    }
+      const decryptedText = decoder.decode(decryptedContent);
+      return { content: decryptedText, cryptoKey, ivBuffer };
+    } // 渲染密码输入表单的函数
 
     function renderPasswordForm(note) {
       if (!passwordFormContainer) return;
-
       noteDisplayArea.innerHTML =
         '<p class="text-gray-600">此笔记受密码保护。</p>';
-
       passwordFormContainer.innerHTML = `
         <div class="max-w-md mx-auto bg-white p-8 rounded-lg shadow-md text-center">
           <h2 class="text-2xl font-bold mb-4">请输入密码</h2>
@@ -194,20 +227,16 @@ const { id } = Astro.params;
         </div>
       `;
       passwordFormContainer.classList.remove("hidden");
-
       const passwordForm = document.getElementById("password-form");
       const passwordInput = document.getElementById("note-password-input");
-
       if (passwordForm && passwordInput) {
         passwordForm.addEventListener("submit", async (e) => {
           e.preventDefault();
           const password = passwordInput.value;
           passwordInput.classList.remove("border-red-500");
           passwordInput.placeholder = "请输入密码";
-
           try {
-            const decryptedContent = await decryptNote({ ...note, password });
-            displayNote({ ...note, content: decryptedContent });
+            await processNote(note, password);
           } catch (err) {
             passwordInput.classList.add("border-red-500");
             passwordInput.placeholder = "密码错误，请重试";
@@ -218,16 +247,29 @@ const { id } = Astro.params;
       }
     }
 
+    // 统一处理笔记解密和渲染的函数
+    async function processNote(foundNote, password = null) {
+      const decryptionResult = await decryptNote({ ...foundNote, password });
+      const decryptedContent = decryptionResult.content;
+      let decryptedFiles = [];
+      if (!isProduction && foundNote.files && foundNote.files.length > 0) {
+        // 只有在本地开发环境才解密文件，因为生产环境由服务器处理
+        decryptedFiles = await decryptFiles(
+          foundNote.files,
+          decryptionResult.cryptoKey,
+          decryptionResult.ivBuffer
+        );
+      }
+      renderNoteContent(foundNote, decryptedContent, decryptedFiles);
+    } // 页面加载时执行的函数
     async function loadNote() {
       if (!noteId) {
         displayError("无效的笔记链接。");
         return;
       }
-
       try {
         const response = await fetch(`/api/note/${noteId}`);
         console.log(`GET /api/note/${noteId} status: ${response.status}`);
-
         if (!response.ok) {
           if (response.status === 404) {
             throw new Error("笔记未找到或已过期。");
@@ -235,22 +277,17 @@ const { id } = Astro.params;
             throw new Error("加载笔记时发生网络错误。");
           }
         }
-
         const foundNote = await response.json();
-
-        // 关键逻辑：如果后端返回的数据表示有密码，则显示密码表单
         if (foundNote.hasPassword) {
           renderPasswordForm(foundNote);
         } else {
-          const decryptedContent = await decryptNote(foundNote);
-          displayNote({ ...foundNote, content: decryptedContent });
+          await processNote(foundNote);
         }
       } catch (err) {
         console.error("加载笔记失败:", err);
         displayError(err.message);
       }
-    } // 页面加载时执行
-
+    }
     document.addEventListener("DOMContentLoaded", () => {
       loadNote();
     });
