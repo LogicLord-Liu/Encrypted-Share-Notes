@@ -30,8 +30,10 @@ const { id } = Astro.params;
     const noteDisplayArea = document.getElementById("note-display-area");
     const passwordFormContainer = document.getElementById(
       "password-form-container"
-    ); // 简单判断是否为生产环境。如果域名不是 localhost，则认为是生产环境。
+    );
     const isProduction = window.location.hostname !== "localhost";
+
+    let deleteTriggered = false;
 
     function displayError(message) {
       if (!noteDisplayArea) return;
@@ -39,7 +41,7 @@ const { id } = Astro.params;
         <div class="text-red-500 font-medium text-center">加载笔记失败</div>
         <p class="text-red-500 text-center mt-2">${message}</p>
       `;
-    } // 根据环境和解密后的数据渲染笔记内容和文件列表
+    }
 
     function renderNoteContent(note, decryptedContent, decryptedFiles = []) {
       if (!noteDisplayArea) return;
@@ -47,7 +49,6 @@ const { id } = Astro.params;
       let fileListHtml = "";
       if (note.files && note.files.length > 0) {
         if (isProduction) {
-          // 生产环境下，使用服务器端直接下载链接
           fileListHtml = `
             <div class="mt-4">
               <p class="font-medium">附件:</p>
@@ -61,7 +62,6 @@ const { id } = Astro.params;
               </ul>
             </div>`;
         } else {
-          // 本地开发环境下，使用 Blob URL
           fileListHtml = `
             <div class="mt-4">
               <p class="font-medium">附件:</p>
@@ -76,7 +76,6 @@ const { id } = Astro.params;
             </div>`;
         }
       }
-
       noteDisplayArea.innerHTML = `
         <article class="prose lg:prose-lg mx-auto text-left break-all whitespace-pre-wrap">
           <p>${decryptedContent}</p>
@@ -86,7 +85,7 @@ const { id } = Astro.params;
           <p>过期时间: ${note.expiration}</p>
           ${
         note.deleteAfterReading
-          ? '<p class="text-red-500">此笔记将在首次阅读后被删除。</p>'
+          ? '<p class="text-red-500 font-semibold">此笔记将在首次阅读后被删除。</p>'
           : ""
       }
           ${fileListHtml}
@@ -96,7 +95,7 @@ const { id } = Astro.params;
         passwordFormContainer.innerHTML = "";
         passwordFormContainer.classList.add("hidden");
       }
-    } // 新增: 用于本地开发环境的文件解密函数
+    }
 
     async function decryptFiles(files, cryptoKey, ivBuffer) {
       const decryptedFiles = await Promise.all(
@@ -131,7 +130,7 @@ const { id } = Astro.params;
         })
       );
       return decryptedFiles;
-    } // 解密笔记文本内容的函数
+    }
 
     async function decryptNote(note) {
       if (!note.key || !note.iv || !note.content) {
@@ -200,7 +199,7 @@ const { id } = Astro.params;
       const decoder = new TextDecoder();
       const decryptedText = decoder.decode(decryptedContent);
       return { content: decryptedText, cryptoKey, ivBuffer };
-    } // 渲染密码输入表单的函数
+    }
 
     function renderPasswordForm(note) {
       if (!passwordFormContainer) return;
@@ -245,23 +244,40 @@ const { id } = Astro.params;
           }
         });
       }
-    }
+    } // 新增: 统一处理笔记解密和渲染的函数
 
-    // 统一处理笔记解密和渲染的函数
     async function processNote(foundNote, password = null) {
       const decryptionResult = await decryptNote({ ...foundNote, password });
       const decryptedContent = decryptionResult.content;
       let decryptedFiles = [];
       if (!isProduction && foundNote.files && foundNote.files.length > 0) {
-        // 只有在本地开发环境才解密文件，因为生产环境由服务器处理
         decryptedFiles = await decryptFiles(
           foundNote.files,
           decryptionResult.cryptoKey,
           decryptionResult.ivBuffer
         );
       }
-      renderNoteContent(foundNote, decryptedContent, decryptedFiles);
-    } // 页面加载时执行的函数
+      renderNoteContent(foundNote, decryptedContent, decryptedFiles); // ⭐ 核心改动：如果启用了阅后即焚，在用户离开页面时删除笔记
+
+      if (foundNote.deleteAfterReading) {
+        window.addEventListener("beforeunload", () => {
+          // 使用 navigator.sendBeacon 来发送 DELETE 请求
+          // 它能确保请求在页面关闭后依然能成功发送，而不会被中断
+          if (!deleteTriggered) {
+            const url = `/api/note/${foundNote.id}`;
+            const beaconData = new FormData(); // 使用 fetch 发送 DELETE 请求
+            fetch(url, { method: "DELETE", keepalive: true })
+              .then((response) => {
+                console.log(`笔记 ${foundNote.id} 已成功删除。`);
+              })
+              .catch((error) => {
+                console.error(`删除笔记 ${foundNote.id} 时出错:`, error);
+              });
+            deleteTriggered = true;
+          }
+        });
+      }
+    }
     async function loadNote() {
       if (!noteId) {
         displayError("无效的笔记链接。");
