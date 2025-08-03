@@ -253,6 +253,34 @@ import MainContent from "../components/NoteEditor.astro";
           );
         }
 
+        // ⭐️ CORRECTED: 4. 处理和加密文件
+        // const encryptedFiles = [];
+        // if (uploadedFiles.length > 0) {
+        //   // Use Promise.all to process all files concurrently for better performance
+        //   await Promise.all(
+        //     uploadedFiles.map(async (file) => {
+        //       const fileIv = window.crypto.getRandomValues(new Uint8Array(12));
+        //       const fileBuffer = await file.arrayBuffer(); // Read file content as an ArrayBuffer
+        //       const encryptedFile = await window.crypto.subtle.encrypt(
+        //         // Encrypt the file content
+        //         { name: "AES-GCM", iv: fileIv },
+        //         cryptoKey,
+        //         fileBuffer
+        //       );
+
+        //       encryptedFiles.push({
+        //         name: file.name,
+        //         type: file.type,
+        //         size: file.size, // Original size
+        //         iv: btoa(String.fromCharCode(...fileIv)),
+        //         data: btoa(
+        //           String.fromCharCode(...new Uint8Array(encryptedFile))
+        //         ), // Store encrypted file data
+        //       });
+        //     })
+        //   );
+        // }
+
         // 8. 准备存储到 localStorage 的数据
         const newNoteId = generateUniqueId();
         const encryptedLink = `${window.location.origin}/note/${newNoteId}`;
@@ -265,36 +293,32 @@ import MainContent from "../components/NoteEditor.astro";
           expiration: selectedExpiration,
           deleteAfterReading: deleteAfterReading,
           hasPassword: !!notePassword, // ⭐ 修复点3: 标记是否有密码，但不存储原始密码
-          files: uploadedFiles.map((f) => ({
-            name: f.name,
-            size: f.size,
-            type: f.type,
-          })),
+          files: [],
           createdAt: new Date().toISOString(),
         };
 
         // 发送 POST 请求到 Pages Function
-        // const response = await fetch("/api/note", {
-        //   method: "POST",
-        //   headers: { "Content-Type": "application/json" },
-        //   body: JSON.stringify(newNote),
-        // });
+        const response = await fetch("/api/note", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(newNote),
+        });
 
-        // if (!response.ok) {
-        //   throw new Error(
-        //     `Failed to save note to the backend: ${response.statusText}`
-        //   );
-        // }
+        if (!response.ok) {
+          throw new Error(
+            `Failed to save note to the backend: ${response.statusText}`
+          );
+        }
 
-        // const result = await response.json();
-        // console.log("笔记已成功保存到 KV:", result);
+        const result = await response.json();
+        console.log("笔记已成功保存到 KV:", result);
 
         // 9. 将新笔记保存到 localStorage
-        let notes = JSON.parse(localStorage.getItem(NOTES_STORAGE_KEY) || "[]");
-        notes.push(newNote);
-        localStorage.setItem(NOTES_STORAGE_KEY, JSON.stringify(notes));
+        // let notes = JSON.parse(localStorage.getItem(NOTES_STORAGE_KEY) || "[]");
+        // notes.push(newNote);
+        // localStorage.setItem(NOTES_STORAGE_KEY, JSON.stringify(notes));
 
-        console.log("创建笔记并保存到 localStorage：", newNote);
+        // console.log("创建笔记并保存到 localStorage：", newNote);
 
         // 10. 重置表单
         dom.noteContentInput.value = "";

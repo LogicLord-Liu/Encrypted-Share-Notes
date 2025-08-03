@@ -1,56 +1,49 @@
 // src/pages/api/note.ts
 
 import type { APIRoute } from 'astro';
+import { localKv } from '../../utils/local-kv';
 
-// 定义 KV key 的前缀，以避免与其他数据冲突
 const NOTE_PREFIX = 'note:';
 
-/**
- * 处理 POST 请求，用于创建新笔记。
- * @param {object} context - Astro 提供的 API 路由上下文对象。
- * @param {Request} context.request - 传入的 HTTP 请求对象。
- * @param {object} context.env - 环境变量，包含 KV 绑定。
- * @returns {Response} - HTTP 响应对象。
- */
 export const POST: APIRoute = async ({ request, env }) => {
     try {
-        // 尝试解析请求体中的 JSON 数据
-        const noteData = await request.json();
-        const noteId = noteData.id;
+        console.log("KV DEBUG: Pages Function 开始执行。");
 
-        // 验证请求体中是否包含 id
+        // ⭐️ 步骤 2: 关键修复！在使用 env 之前先检查 env 是否存在。
+        // 如果 env 存在且 env.NOTES_KV 存在，就使用它；否则使用本地模拟对象。
+        const kv = (env && env.NOTES_KV) ? env.NOTES_KV as KVNamespace : localKv;
+
+        console.log("KV DEBUG: 已获取 KV 实例（本地或远程）。");
+
+        const noteData = await request.json();
+        console.log("KV DEBUG: 成功解析 JSON 数据。");
+
+        const noteId = noteData.id;
         if (!noteId) {
-            return new Response(JSON.stringify({ error: 'Note ID is required' }), {
+            console.error("KV DEBUG: JSON 数据中缺少 Note ID。");
+            return new Response(JSON.stringify({ error: 'Note ID 是必需的' }), {
                 status: 400,
                 headers: { 'Content-Type': 'application/json' },
             });
         }
+        console.log(`KV DEBUG: 接收到的 Note ID: ${noteId}`);
 
-        // 访问 KV 绑定变量。`NOTES_KV` 是在 Pages 设置中配置的变量名。
-        const kv = env.NOTES_KV as KVNamespace;
-        if (!kv) {
-            // ⭐ 重点检查这里，如果 env.NOTES_KV 不存在，这就是你的问题所在！
-            console.error("Pages Function: KV namespace binding 'NOTES_KV' is missing.");
-            return new Response(JSON.stringify({ error: "KV namespace is not configured." }), {
-                status: 500,
-                headers: { 'Content-Type': 'application/json' },
-            });
-        }
-        
-        // 将整个笔记数据（已加密）作为 JSON 字符串存入 KV
-        // 键名使用 NOTE_PREFIX + noteId，值是 noteData 的 JSON 字符串形式
-        await kv.put(NOTE_PREFIX + noteId, JSON.stringify(noteData));
+        const kvKey = NOTE_PREFIX + noteId;
+        const kvValue = JSON.stringify(noteData);
+        console.log(`KV DEBUG: 尝试写入 KV。键: ${kvKey}, 值长度: ${kvValue.length}`);
 
-        // 成功响应，返回创建成功的消息和 ID
-        return new Response(JSON.stringify({ message: 'Note created successfully', id: noteId }), {
-            status: 201, // 201 Created 状态码
+        await kv.put(kvKey, kvValue);
+
+        console.log("KV DEBUG: KV 写入操作成功。");
+
+        return new Response(JSON.stringify({ message: '笔记创建成功', id: noteId }), {
+            status: 201,
             headers: { 'Content-Type': 'application/json' },
         });
     } catch (error) {
-        // 捕获任何解析 JSON 或 KV 存储过程中的错误
-        console.error('Pages Function: Caught an error during note creation:', error);
-        return new Response(JSON.stringify({ error: 'Invalid JSON or other server error.' }), {
-            status: 500, // 500 Internal Server Error 状态码
+        console.error('KV DEBUG: 发生意外错误:', error);
+        return new Response(JSON.stringify({ error: '服务器内部错误。' }), {
+            status: 500,
             headers: { 'Content-Type': 'application/json' },
         });
     }

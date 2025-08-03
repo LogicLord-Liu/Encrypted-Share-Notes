@@ -4,12 +4,7 @@ import Layout from "../../layouts/Layout.astro";
 // 在服务器端获取路由参数
 const { id } = Astro.params;
 
-// 这个脚本块将在服务器上执行
-let noteContent = "正在加载...";
-let noteData = null;
-
-// 在服务器端无法访问 localStorage，因此我们需要在客户端脚本中处理
-// 这里的变量只是占位符
+// 这里的服务器端变量只是占位符，实际加载由客户端 JS 处理
 ---
 
 <Layout title="查看笔记 - Enclosed">
@@ -21,6 +16,8 @@ let noteData = null;
         <p class="text-gray-600">正在加载笔记...</p>
       </div>
 
+      <div id="password-form-container" class="hidden"></div>
+
       <a href="/" class="mt-8 inline-block text-sky-600 hover:underline"
         >返回首页</a
       >
@@ -30,17 +27,19 @@ let noteData = null;
 
 <script is:inline>
   if (typeof window !== "undefined") {
-    const NOTES_STORAGE_KEY = "enclosed_notes_data";
     const url = new URL(window.location.href);
     const noteId = url.pathname.split("/").pop();
     const noteDisplayArea = document.getElementById("note-display-area");
+    const passwordFormContainer = document.getElementById(
+      "password-form-container"
+    );
 
     function displayError(message) {
       if (!noteDisplayArea) return;
       noteDisplayArea.innerHTML = `
-        <div class="text-red-500 font-medium text-center">加载笔记失败</div>
-        <p class="text-red-500 text-center mt-2">${message}</p>
-      `;
+        <div class="text-red-500 font-medium text-center">加载笔记失败</div>
+        <p class="text-red-500 text-center mt-2">${message}</p>
+      `;
     }
 
     function displayNote(note) {
@@ -49,39 +48,45 @@ let noteData = null;
       const markdownContent = note.content;
 
       noteDisplayArea.innerHTML = `
-        <article class="prose lg:prose-lg mx-auto">
-          <p>${markdownContent}</p>
-        </article>
-        <div class="mt-8 pt-4 border-t border-gray-200 text-center text-sm text-gray-500">
-          <p>创建于: ${new Date(note.createdAt).toLocaleString()}</p>
-          <p>过期时间: ${note.expiration}</p>
-          ${
-            note.deleteAfterReading
-              ? '<p class="text-red-500">此笔记将在首次阅读后被删除。</p>'
-              : ""
-          }
-          ${
-            note.files && note.files.length > 0
-              ? `
-              <div class="mt-4">
-                <p class="font-medium">附件:</p>
-                <ul class="list-disc list-inside mt-1 mx-auto text-left w-fit">
-                  ${note.files
-                    .map(
-                      (file) =>
-                        `<li>${file.name} (${(file.size / 1024).toFixed(1)} KB)</li>`
-                    )
-                    .join("")}
-                </ul>
-              </div>
-              `
-              : ""
-          }
-        </div>
-      `;
+        <article class="prose lg:prose-lg mx-auto text-left break-all whitespace-pre-wrap">
+          <p>${markdownContent}</p>
+        </article>
+        <div class="mt-8 pt-4 border-t border-gray-200 text-center text-sm text-gray-500">
+          <p>创建于: ${new Date(note.createdAt).toLocaleString()}</p>
+          <p>过期时间: ${note.expiration}</p>
+          ${
+        note.deleteAfterReading
+          ? '<p class="text-red-500">此笔记将在首次阅读后被删除。</p>'
+          : ""
+      }
+          ${
+        note.files && note.files.length > 0
+          ? `
+              <div class="mt-4">
+                <p class="font-medium">附件:</p>
+                <ul class="list-disc list-inside mt-1 mx-auto text-left w-fit">
+                  ${note.files
+              .map(
+                (file) =>
+                  `<li>${file.name} (${(file.size / 1024).toFixed(1)} KB)</li>`
+              )
+              .join("")}
+                </ul>
+              </div>
+              `
+          : ""
+      }
+        </div>
+      `;
+      // 如果笔记显示成功，清除密码表单
+      if (passwordFormContainer) {
+        passwordFormContainer.innerHTML = "";
+        passwordFormContainer.classList.add("hidden");
+      }
     }
 
     async function decryptNote(note) {
+      // ... (解密逻辑保持不变)
       if (!note.key || !note.iv || !note.content) {
         throw new Error("笔记数据不完整，无法解密。");
       }
@@ -89,9 +94,8 @@ let noteData = null;
       const keyBase64 = note.key;
       const ivBase64 = note.iv;
       const encryptedContentBase64 = note.content;
-      const notePassword = note.password || null;
+      const notePassword = note.password || null; // 将 Base64 字符串转换为 ArrayBuffer
 
-      // 将 Base64 字符串转换为 ArrayBuffer
       const keyBuffer = Uint8Array.from(atob(keyBase64), (c) =>
         c.charCodeAt(0)
       );
@@ -101,9 +105,8 @@ let noteData = null;
         (c) => c.charCodeAt(0)
       );
 
-      let finalKeyBuffer = keyBuffer;
+      let finalKeyBuffer = keyBuffer; // 如果有密码，先用密码解密笔记密钥
 
-      // 如果有密码，先用密码解密笔记密钥
       if (note.hasPassword) {
         if (!notePassword) {
           throw new Error("此笔记受密码保护，请输入密码。");
@@ -141,9 +144,8 @@ let noteData = null;
           console.error("解密密钥失败:", err);
           throw new Error("密码错误或解密密钥失败。");
         }
-      }
+      } // 使用最终的密钥解密笔记内容
 
-      // 使用最终的密钥解密笔记内容
       const cryptoKey = await window.crypto.subtle.importKey(
         "raw",
         finalKeyBuffer,
@@ -166,27 +168,32 @@ let noteData = null;
     }
 
     function renderPasswordForm(note) {
-      if (!noteDisplayArea) return;
-      noteDisplayArea.innerHTML = `
-        <div class="max-w-md mx-auto bg-white p-8 rounded-lg shadow-md text-center">
-          <h2 class="text-2xl font-bold mb-4">此笔记受密码保护</h2>
-          <form id="password-form" class="space-y-4">
-            <input 
-              id="note-password-input"
-              type="password"
-              placeholder="请输入密码"
-              class="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500"
-              required
-            />
-            <button 
-              type="submit"
-              class="w-full bg-sky-500 text-white py-2 rounded-md hover:bg-sky-600 transition duration-300"
-            >
-              解锁笔记
-            </button>
-          </form>
-        </div>
-      `;
+      if (!passwordFormContainer) return;
+
+      noteDisplayArea.innerHTML =
+        '<p class="text-gray-600">此笔记受密码保护。</p>';
+
+      passwordFormContainer.innerHTML = `
+        <div class="max-w-md mx-auto bg-white p-8 rounded-lg shadow-md text-center">
+          <h2 class="text-2xl font-bold mb-4">请输入密码</h2>
+          <form id="password-form" class="space-y-4">
+            <input 
+              id="note-password-input"
+              type="password"
+              placeholder="请输入密码"
+              class="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500"
+              required
+            />
+            <button 
+              type="submit"
+              class="w-full bg-sky-500 text-white py-2 rounded-md hover:bg-sky-600 transition duration-300"
+            >
+              解锁笔记
+            </button>
+          </form>
+        </div>
+      `;
+      passwordFormContainer.classList.remove("hidden");
 
       const passwordForm = document.getElementById("password-form");
       const passwordInput = document.getElementById("note-password-input");
@@ -211,31 +218,39 @@ let noteData = null;
       }
     }
 
-    function loadNote() {
-      const notes = JSON.parse(localStorage.getItem(NOTES_STORAGE_KEY) || "[]");
-      const foundNote = notes.find((note) => note.id === noteId);
+    async function loadNote() {
+      if (!noteId) {
+        displayError("无效的笔记链接。");
+        return;
+      }
 
-      if (foundNote) {
+      try {
+        const response = await fetch(`/api/note/${noteId}`);
+        console.log(`GET /api/note/${noteId} status: ${response.status}`);
+
+        if (!response.ok) {
+          if (response.status === 404) {
+            throw new Error("笔记未找到或已过期。");
+          } else {
+            throw new Error("加载笔记时发生网络错误。");
+          }
+        }
+
+        const foundNote = await response.json();
+
+        // 关键逻辑：如果后端返回的数据表示有密码，则显示密码表单
         if (foundNote.hasPassword) {
-          // 如果笔记有密码，则显示密码表单
           renderPasswordForm(foundNote);
         } else {
-          // 没有密码，直接解密并显示
-          decryptNote(foundNote)
-            .then((decryptedContent) => {
-              displayNote({ ...foundNote, content: decryptedContent });
-            })
-            .catch((err) => {
-              console.error("解密失败:", err);
-              displayError("解密笔记内容时发生错误。");
-            });
+          const decryptedContent = await decryptNote(foundNote);
+          displayNote({ ...foundNote, content: decryptedContent });
         }
-      } else {
-        displayError("笔记未找到。");
+      } catch (err) {
+        console.error("加载笔记失败:", err);
+        displayError(err.message);
       }
-    }
+    } // 页面加载时执行
 
-    // 页面加载时执行
     document.addEventListener("DOMContentLoaded", () => {
       loadNote();
     });
