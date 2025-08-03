@@ -179,6 +179,22 @@ import MainContent from "../components/NoteEditor.astro";
       const notePassword = dom.notePasswordInput.value;
       const deleteAfterReading = dom.deleteAfterReadingCheckbox.checked;
 
+      let expirationTtl;
+      switch (selectedExpiration) {
+        case "1hour":
+          expirationTtl = 60 * 60;
+          break;
+        case "1day":
+          expirationTtl = 24 * 60 * 60;
+          break;
+        case "1week":
+          expirationTtl = 30 * 24 * 60 * 60;
+          break;
+        case "1never":
+          expirationTtl = null;
+          break;
+      }
+
       try {
         // 1. 生成一个用于加密笔记内容的随机密钥 (AES-GCM)
         const cryptoKey = await window.crypto.subtle.generateKey(
@@ -276,7 +292,7 @@ import MainContent from "../components/NoteEditor.astro";
           content: encryptedContentBase64,
           key: finalKeyBase64,
           iv: ivBase64,
-          expiration: selectedExpiration,
+          expiration: expirationTtl,
           deleteAfterReading: deleteAfterReading,
           hasPassword: !!notePassword,
           files: encryptedFiles, // ⭐ 修复点：将加密后的文件数组添加到 newNote
