@@ -9,8 +9,22 @@
     <textarea
       id="note-content"
       placeholder="在此输入您的笔记..."
-      class="w-full h-full p-6 text-lg outline-none resize-none font-mono"
+      class="w-full h-full p-6 text-lg font-mono
+          bg-white dark:bg-gray-900
+          text-gray-900 dark:text-gray-100
+          border border-gray-300 dark:border-gray-700
+          rounded-2xl font-bold relative
+          shadow-sm focus:shadow-lg focus:border-blue-500
+          outline-none resize-none transition-all duration-200
+          scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-transparent
+          sm:text-base md:text-lg lg:text-xl"
     ></textarea>
+    <div
+      id="character-count"
+      class="absolute bottom-4 right-4 text-sm text-gray-500 font-medium"
+    >
+      0 字符
+    </div>
   </div>
 
   <aside
@@ -295,3 +309,22 @@
     </div>
   </div>
 </div>
+
+<script>
+  if (typeof window !== "undefined") {
+    const noteContentInput = document.getElementById("note-content");
+    const characterCountElement = document.getElementById("character-count");
+
+    if (noteContentInput && characterCountElement) {
+      // 更新计数器的函数
+      const updateCharacterCount = () => {
+        const count = noteContentInput.value.length;
+        characterCountElement.textContent = `${count} 字符`;
+      }; // 初始加载时执行一次
+
+      updateCharacterCount(); // 监听输入事件
+
+      noteContentInput.addEventListener("input", updateCharacterCount);
+    }
+  }
+</script>
