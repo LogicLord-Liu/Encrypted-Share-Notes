@@ -206,24 +206,24 @@ const { id } = Astro.params;
       noteDisplayArea.innerHTML =
         '<p class="text-gray-600">此笔记受密码保护。</p>';
       passwordFormContainer.innerHTML = `
-        <div class="max-w-md mx-auto bg-white p-8 rounded-lg shadow-md text-center">
-          <h2 class="text-2xl font-bold mb-4">请输入密码</h2>
-          <form id="password-form" class="space-y-4">
-            <input 
-              id="note-password-input"
-              type="password"
-              placeholder="请输入密码"
-              class="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500"
-              required
-            />
-            <button 
-              type="submit"
-              class="w-full bg-sky-500 text-white py-2 rounded-md hover:bg-sky-600 transition duration-300"
-            >
-              解锁笔记
-            </button>
-          </form>
-        </div>
+        <div class="max-w-md mx-auto bg-white p-8 rounded-2xl shadow-lg text-center border border-gray-100">
+          <h2 class="text-3xl font-semibold mb-6 text-gray-800">🔒 输入密码以查看内容</h2>
+          <form id="password-form" class="space-y-5">
+            <input 
+              id="note-password-input"
+              type="password"
+              placeholder="请输入密码"
+              class="w-full px-5 py-3 border border-gray-300 rounded-xl shadow-sm bg-gray-50 text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-sky-400 focus:bg-white transition duration-200"
+              required
+            />
+            <button 
+              type="submit"
+              class="w-full py-3 rounded-xl bg-sky-500 text-white font-medium tracking-wide hover:bg-sky-600 active:scale-[0.98] transition-all duration-200"
+            >
+              🔓 解锁笔记
+            </button>
+          </form>
+        </div>
       `;
       passwordFormContainer.classList.remove("hidden");
       const passwordForm = document.getElementById("password-form");
