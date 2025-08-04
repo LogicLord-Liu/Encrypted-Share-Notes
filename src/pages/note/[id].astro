@@ -78,18 +78,41 @@ const { id } = Astro.params;
       }
       noteDisplayArea.innerHTML = `
         <article class="prose lg:prose-lg mx-auto text-left break-all whitespace-pre-wrap">
-          <p>${decryptedContent}</p>
-        </article>
-        <div class="mt-8 pt-4 border-t border-gray-200 text-center text-sm text-gray-500">
-          <p>创建于: ${new Date(note.createdAt).toLocaleString()}</p>
-          <p>过期时间: ${note.expiration}</p>
-          ${
-        note.deleteAfterReading
-          ? '<p class="text-red-500 font-semibold">此笔记将在首次阅读后被删除。</p>'
-          : ""
-      }
-          ${fileListHtml}
-        </div>
+          <p>${decryptedContent}</p>
+        </article>
+
+        <!-- 信息展示区 -->
+        <div class="mt-10 pt-6 border-t border-gray-100 text-sm text-gray-600 space-y-3">
+
+          <!-- 时间信息区 -->
+          <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 text-left">
+            <div class="flex items-center gap-2">
+              <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M8 7V3M16 7V3M4 11h16M5 19h14a2 2 0 0 0 2-2v-6H3v6a2 2 0 0 0 2 2z"/>
+              </svg>
+              <span>创建时间：${new Date(note.createdAt).toLocaleString()}</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+              <span>过期时间：${note.expiration}(s)</span>
+            </div>
+          </div>
+
+          <!-- 删除提示 -->
+          ${
+            note.deleteAfterReading
+              ? `<p class="text-red-500 font-semibold text-center">
+                  ⚠️ 此笔记将在首次阅读后自动删除
+                </p>`
+              : ""
+          }
+
+          <!-- 文件附件区（保持 fileListHtml 结构） -->
+          ${fileListHtml}
       `;
       if (passwordFormContainer) {
         passwordFormContainer.innerHTML = "";
