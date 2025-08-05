@@ -4,6 +4,7 @@ import Layout from "../layouts/Layout.astro";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import MainContent from "../components/NoteEditor.astro";
+import fileIcons from "../data/fileIcons.json";
 ---
 
 <Layout title="安全分享 - Transcrypt">
@@ -14,6 +15,8 @@ import MainContent from "../components/NoteEditor.astro";
 
 <script is:inline>
   if (typeof window !== "undefined") {
+    //TODO: 文件ICONS
+    //const fileIcons = JSON.parse("{{ JSON.stringify(fileIcons) }}");
     // 全局状态变量
     let showPassword = false;
     let selectedExpiration = "1hour";
@@ -67,6 +70,15 @@ import MainContent from "../components/NoteEditor.astro";
       );
     }
 
+    function formatBytes(bytes, decimals = 1) {
+      if (bytes === 0) return "0 Bytes";
+      const k = 1024;
+      const dm = decimals < 0 ? 0 : decimals;
+      const sizes = ["Bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
+    }
+
     function waitForGlobal(variableName, timeout = 5000) {
       return new Promise((resolve, reject) => {
         const startTime = Date.now();
@@ -97,11 +109,39 @@ import MainContent from "../components/NoteEditor.astro";
 
       uploadedFiles.forEach((fileInfo) => {
         const li = document.createElement("li");
-        li.classList.add("flex", "items-center", "justify-between", "my-1");
+        li.classList.add(
+          "flex",
+          "items-center",
+          "justify-between",
+          "my-1",
+          "py-2",
+          "border-gray-200",
+          "border-b"
+        );
         li.dataset.filename = fileInfo.name;
 
+        // // 新增：文件图标容器
+        // const iconWrapper = document.createElement("div");
+        // iconWrapper.classList.add("flex-shrink-0", "mr-3"); // 获取文件扩展名
+
+        // const fileExtension = fileInfo.name.split(".").pop().toLowerCase(); // 查找对应的图标，如果没有找到则使用默认图标
+        // const iconPath = fileIcons[fileExtension] || fileIcons["default"]; // 创建并设置图标元素
+
+        // const iconImg = document.createElement("img");
+        // iconImg.src = iconPath;
+        // iconImg.alt = `${fileExtension} icon`;
+        // iconImg.classList.add("h-6", "w-6", "object-contain");
+        // iconWrapper.appendChild(iconImg);
+        // li.appendChild(iconWrapper);
+
         const fileNameSpan = document.createElement("span");
-        fileNameSpan.textContent = `${fileInfo.name} (${(fileInfo.size / 1024).toFixed(1)} KB)`;
+        fileNameSpan.classList.add(
+          "text-sm",
+          "text-gray-700",
+          "truncate",
+          "w-full"
+        );
+        fileNameSpan.textContent = `${fileInfo.name} (${formatBytes(fileInfo.size)})`;
         li.appendChild(fileNameSpan);
 
         const deleteButton = document.createElement("button");
@@ -111,7 +151,8 @@ import MainContent from "../components/NoteEditor.astro";
           "text-red-500",
           "hover:text-red-700",
           "font-medium",
-          "ml-4"
+          "ml-4",
+          "flex-shrink-0"
         );
         deleteButton.addEventListener("click", () => {
           uploadedFiles = uploadedFiles.filter((f) => f.name !== fileInfo.name);
@@ -157,7 +198,18 @@ import MainContent from "../components/NoteEditor.astro";
         uploadedFiles = newFiles;
         renderFileList();
       }
-    } // --- 创建笔记和弹窗逻辑 ---
+    }
+    // --- 创建笔记和弹窗逻辑 ---
+
+    const arrayBufferToBase64 = (buffer) => {
+      let binary = "";
+      const bytes = new Uint8Array(buffer);
+      const len = bytes.byteLength;
+      for (let i = 0; i < len; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      return window.btoa(binary);
+    };
 
     async function handleCreateNote() {
       console.log("创建笔记按钮被点击了！");
@@ -217,16 +269,14 @@ import MainContent from "../components/NoteEditor.astro";
           { name: "AES-GCM", iv: iv },
           cryptoKey,
           encodedContent
-        ); // 6. 将加密后的内容和 IV 转换为 Base64 字符串
-
-        const encryptedContentBase64 = btoa(
-          String.fromCharCode(...new Uint8Array(encryptedContent))
         );
-        const ivBase64 = btoa(String.fromCharCode(...iv));
-        let finalKeyBase64 = btoa(
-          String.fromCharCode(...new Uint8Array(exportedKey))
-        ); // 7. 如果设置了密码，则使用密码加密密钥
 
+        // 6. 将加密后的内容和 IV 转换为 Base64 字符串
+        const encryptedContentBase64 = arrayBufferToBase64(encryptedContent);
+        const ivBase64 = arrayBufferToBase64(iv);
+        let finalKeyBase64 = arrayBufferToBase64(exportedKey);
+
+        // 7. 如果设置了密码，则使用密码加密密钥
         if (notePassword) {
           const passwordKey = await window.crypto.subtle.importKey(
             "raw",
@@ -255,9 +305,7 @@ import MainContent from "../components/NoteEditor.astro";
             exportedKey
           );
 
-          finalKeyBase64 = btoa(
-            String.fromCharCode(...new Uint8Array(encryptedKey))
-          );
+          finalKeyBase64 = arrayBufferToBase64(encryptedKey);
         } // ⭐ 新增：处理和加密文件
 
         const encryptedFiles = await Promise.all(
@@ -271,10 +319,10 @@ import MainContent from "../components/NoteEditor.astro";
               fileBuffer
             ); // 将加密后的内容转换为 Base64 字符串以便存储
 
-            const encryptedFileContentBase64 = btoa(
-              String.fromCharCode(...new Uint8Array(encryptedFileContent))
-            ); // 返回加密后的文件对象，包含元数据和内容
-
+            const encryptedFileContentBase64 =
+              arrayBufferToBase64(encryptedFileContent);
+              
+            // 返回加密后的文件对象，包含元数据和内容
             return {
               name: file.name,
               type: file.type,
