@@ -325,22 +325,40 @@ const { id } = Astro.params;
       noteDisplayArea.innerHTML =
         '<p class="text-gray-600">此笔记受密码保护。</p>';
       passwordFormContainer.innerHTML = `
-        <div class="max-w-md mx-auto bg-white p-8 rounded-2xl shadow-lg text-center border border-gray-100">
-          <h2 class="text-3xl font-semibold mb-6 text-gray-800">🔒 输入密码以查看内容</h2>
+        <div class="max-w-md mx-auto bg-white border border-gray-100 rounded-3xl shadow-xl p-8 sm:p-10 text-center space-y-6">
+          <!-- 标题 -->
+          <div class="space-y-2">
+            <div class="flex justify-center items-center">
+              <div class="bg-sky-100 text-sky-600 w-12 h-12 rounded-full flex items-center justify-center shadow-inner">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M12 11c.828 0 1.5-.672 1.5-1.5S12.828 8 12 8s-1.5.672-1.5 1.5S11.172 11 12 11zM17 11V9a5 5 0 00-10 0v2m-1 0a2 2 0 00-2 2v5a2 2 0 002 2h12a2 2 0 002-2v-5a2 2 0 00-2-2h-1" />
+                </svg>
+              </div>
+            </div>
+            <h2 class="text-2xl sm:text-3xl font-bold text-gray-800">输入密码以解锁内容</h2>
+            <p class="text-sm text-gray-500">该笔记已加密，请输入密码以查看。</p>
+          </div>
+
+          <!-- 表单 -->
           <form id="password-form" class="space-y-5">
             <input
               id="note-password-input"
               type="password"
               placeholder="请输入密码"
-              class="w-full px-5 py-3 border border-gray-300 rounded-xl shadow-sm bg-gray-50 text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-sky-400 focus:bg-white transition duration-200"
+              class="w-full px-5 py-3 text-base border border-gray-300 rounded-xl bg-gray-50 text-gray-700 placeholder-gray-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-400 focus:bg-white transition duration-200"
               required
             />
-            <div id="password-error-message" class="text-red-500 text-sm hidden">
-              密码错误。你还有 <span id="attempts-left">${MAX_ATTEMPTS}</span> 次机会。
+
+            <!-- 错误信息 -->
+            <div id="password-error-message" class="text-sm text-red-600 bg-red-50 rounded-md py-2 px-3 border border-red-200 hidden">
+              密码错误。你还有 <span id="attempts-left" class="font-semibold">${MAX_ATTEMPTS}</span> 次机会。
             </div>
+
+            <!-- 按钮 -->
             <button
               type="submit"
-              class="w-full py-3 rounded-xl bg-sky-500 text-white font-medium tracking-wide hover:bg-sky-600 active:scale-[0.98] transition-all duration-200"
+              class="w-full py-3 rounded-xl bg-sky-500 text-white font-semibold tracking-wide hover:bg-sky-600 active:scale-[0.97] transition duration-200"
             >
               🔓 解锁笔记
             </button>
