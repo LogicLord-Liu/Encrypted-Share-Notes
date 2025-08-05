@@ -38,8 +38,10 @@ const { id } = Astro.params;
     function displayError(message) {
       if (!noteDisplayArea) return;
       noteDisplayArea.innerHTML = `
-        <div class="text-red-500 font-medium text-center">加载笔记失败</div>
-        <p class="text-red-500 text-center mt-2">${message}</p>
+        <div class="bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-xl shadow-sm animate-fade-in">
+          <h3 class="text-lg font-semibold text-center">加载笔记失败</h3>
+          <p class="text-sm text-center mt-2">${message}</p>
+        </div>
       `;
     }
 
