@@ -50,30 +50,61 @@ const { id } = Astro.params;
       if (note.files && note.files.length > 0) {
         if (isProduction) {
           fileListHtml = `
-            <div class="mt-4">
-              <p class="font-medium">附件:</p>
-              <ul class="list-disc list-inside mt-1 mx-auto text-left w-fit">
-                ${note.files
-            .map(
-              (file) =>
-                `<li><a href="/api/file/${note.id}/${file.fileId}" download="${file.name}" class="text-sky-600 hover:underline">${file.name}</a></li>`
-            )
-            .join("")}
-              </ul>
-            </div>`;
+            <div class="mt-6">
+              <div class="flex items-center space-x-2 text-gray-700 mb-3">
+                <svg class="w-5 h-5 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828L18 9.828a4 4 0 10-5.656-5.656L6.343 9.172a6 6 0 108.485 8.485" />
+                </svg>
+                <p class="font-semibold text-base">附件：</p>
+              </div>
+
+              <ul class="space-y-2 text-sm text-left">
+                ${note.files
+                  .map(
+                    (file) => `
+                    <li>
+                      <a href="/api/file/${note.id}/${file.fileId}"
+                        download="${file.name}"
+                        class="flex items-center justify-between bg-gray-50 border border-gray-200 px-4 py-2 rounded-md hover:bg-sky-50 transition text-sky-600 hover:text-sky-700">
+                        <span class="truncate">${file.name}</span>
+                        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 12v6m0 0l3-3m-3 3l-3-3" />
+                        </svg>
+                      </a>
+                    </li>`
+                  )
+                  .join("")}
+              </ul>
+            </div>`;
         } else {
           fileListHtml = `
-            <div class="mt-4">
-              <p class="font-medium">附件:</p>
-              <ul class="list-disc list-inside mt-1 mx-auto text-left w-fit">
-                ${decryptedFiles
-            .map(
-              (file) =>
-                `<li><a href="${file.url}" download="${file.name}" class="text-sky-600 hover:underline">${file.name} (${(file.size / 1024).toFixed(1)} KB)</a></li>`
-            )
-            .join("")}
-              </ul>
-            </div>`;
+            <div class="mt-6">
+              <div class="flex items-center space-x-2 text-gray-700 mb-3">
+                <svg class="w-5 h-5 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828L18 9.828a4 4 0 10-5.656-5.656L6.343 9.172a6 6 0 108.485 8.485" />
+                </svg>
+                <p class="font-semibold text-base">附件：</p>
+              </div>
+
+              <ul class="space-y-2 text-sm text-left">
+                ${decryptedFiles
+                  .map(
+                    (file) => `
+                    <li>
+                      <a href="${file.url}"
+                        download="${file.name}"
+                        class="flex items-center justify-between bg-gray-50 border border-gray-200 px-4 py-2 rounded-md hover:bg-sky-50 transition text-sky-600 hover:text-sky-700">
+                        <span class="truncate">${file.name}</span>
+                        <span class="ml-4 text-gray-400 text-xs shrink-0">${(file.size / 1024).toFixed(1)} KB</span>
+                      </a>
+                    </li>`
+                  )
+                  .join("")}
+              </ul>
+            </div>`;
         }
       }
       noteDisplayArea.innerHTML = `
