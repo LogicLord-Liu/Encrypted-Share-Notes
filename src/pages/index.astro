@@ -41,6 +41,7 @@ import fileIcons from "../data/fileIcons.json";
       eyeClosedIcon: document.getElementById("eye-closed"),
       generatePasswordButton: document.getElementById("generate-password"),
       expirationOptionsContainer: document.getElementById("expiration-options"),
+      neverExpiresCheckbox: document.getElementById("never-expires"),
       deleteAfterReadingCheckbox: document.getElementById(
         "delete-after-reading"
       ),
@@ -232,19 +233,25 @@ import fileIcons from "../data/fileIcons.json";
       const deleteAfterReading = dom.deleteAfterReadingCheckbox.checked;
 
       let expirationTtl;
-      switch (selectedExpiration) {
-        case "1hour":
-          expirationTtl = 60 * 60;
-          break;
-        case "1day":
-          expirationTtl = 24 * 60 * 60;
-          break;
-        case "1week":
-          expirationTtl = 30 * 24 * 60 * 60;
-          break;
-        case "1never":
-          expirationTtl = null;
-          break;
+      if (dom.neverExpiresCheckbox.checked) {
+        expirationTtl = null;
+      } else {
+        switch (selectedExpiration) {
+          case "1hour":
+            expirationTtl = 60 * 60;
+            break;
+          case "1day":
+            expirationTtl = 24 * 60 * 60;
+            break;
+          case "1week":
+            expirationTtl = 7 * 24 * 60 * 60;
+            break;
+          case "1month":
+            expirationTtl = 30 * 24 * 60 * 60;
+            break;
+          default:
+            expirationTtl = 60 * 60; // 默认1小时
+        }
       }
 
       try {
@@ -321,7 +328,7 @@ import fileIcons from "../data/fileIcons.json";
 
             const encryptedFileContentBase64 =
               arrayBufferToBase64(encryptedFileContent);
-              
+
             // 返回加密后的文件对象，包含元数据和内容
             return {
               name: file.name,
@@ -365,6 +372,9 @@ import fileIcons from "../data/fileIcons.json";
         dom.noteContentInput.value = "";
         dom.notePasswordInput.value = "";
         dom.deleteAfterReadingCheckbox.checked = false;
+        if (dom.neverExpiresCheckbox) {
+          dom.neverExpiresCheckbox.checked = false;
+        }
         uploadedFiles = [];
         if (dom.fileInput) dom.fileInput.value = "";
         renderFileList(); // 重置过期时间选择按钮样式
@@ -453,6 +463,67 @@ import fileIcons from "../data/fileIcons.json";
         dom.createNoteButton.disabled = false;
       }
     } // --- 事件处理函数 ---
+
+    // ⭐ 新增：处理过期选项和永不过期之间的互斥逻辑
+    function handleExpirationChange(event) {
+      const isNeverExpires = dom.neverExpiresCheckbox.checked;
+      const clickedButton = event.target.closest("button[data-value]");
+
+      if (isNeverExpires && clickedButton) {
+        // 如果“永不过期”已选中，点击其他按钮则取消它
+        dom.neverExpiresCheckbox.checked = false;
+      } else if (isNeverExpires) {
+        // 如果“永不过期”已选中，将所有过期按钮设置为非选中状态
+        dom.expirationOptionsContainer
+          .querySelectorAll("button")
+          .forEach((btn) => {
+            btn.classList.remove("bg-sky-500/60", "text-white");
+            btn.classList.add(
+              "bg-gray-100",
+              "text-gray-700",
+              "hover:bg-gray-200"
+            );
+          });
+      }
+
+      // 如果点击了过期时间按钮
+      if (clickedButton) {
+        dom.expirationOptionsContainer
+          .querySelectorAll("button")
+          .forEach((btn) => {
+            btn.classList.remove("bg-sky-500/60", "text-white");
+            btn.classList.add(
+              "bg-gray-100",
+              "text-gray-700",
+              "hover:bg-gray-200"
+            );
+          });
+        clickedButton.classList.add("bg-sky-500/60", "text-white");
+        clickedButton.classList.remove(
+          "bg-gray-100",
+          "text-gray-700",
+          "hover:bg-gray-200"
+        );
+        selectedExpiration = clickedButton.dataset.value;
+        // 选中过期时间后，取消“永不过期”和“阅后即焚”
+        dom.neverExpiresCheckbox.checked = false;
+        dom.deleteAfterReadingCheckbox.checked = false;
+      }
+
+      // 无论何种情况，确保“阅后即焚”和“永不过期”是互斥的
+      if (
+        dom.neverExpiresCheckbox.checked &&
+        dom.deleteAfterReadingCheckbox.checked
+      ) {
+        dom.deleteAfterReadingCheckbox.checked = false;
+      }
+      if (
+        dom.deleteAfterReadingCheckbox.checked &&
+        dom.neverExpiresCheckbox.checked
+      ) {
+        dom.neverExpiresCheckbox.checked = false;
+      }
+    }
 
     function handleCopyLink() {
       if (!dom.encryptedLinkDisplay || !dom.copyFeedback) return;
@@ -559,10 +630,88 @@ import fileIcons from "../data/fileIcons.json";
               "hover:bg-gray-200"
             );
             selectedExpiration = targetButton.dataset.value;
+
+            // ⭐ 新增逻辑：选中过期时间后，取消“永不过期”
+            if (dom.neverExpiresCheckbox) {
+              dom.neverExpiresCheckbox.checked = false;
+            }
           }
         });
-      } // 按钮禁用状态和事件
+      }
 
+      // ⭐ 新增：永不过期选项的事件监听
+      if (dom.neverExpiresCheckbox) {
+        dom.neverExpiresCheckbox.addEventListener("change", (event) => {
+          const isChecked = event.target.checked;
+          if (isChecked) {
+            // 如果“永不过期”被选中，禁用所有过期时间按钮
+            dom.expirationOptionsContainer
+              .querySelectorAll("button")
+              .forEach((btn) => {
+                btn.disabled = true;
+                btn.classList.remove("bg-sky-500/60", "text-white");
+                btn.classList.add("bg-gray-100", "text-gray-700");
+                btn.classList.remove("hover:bg-gray-200");
+                btn.classList.add("cursor-not-allowed");
+              });
+            // 将选中过期时间设置为“永不过期”
+            selectedExpiration = "never";
+
+            // ⭐ 互斥逻辑：如果“永不过期”被选中，取消“阅后即焚”
+            if (dom.deleteAfterReadingCheckbox) {
+              dom.deleteAfterReadingCheckbox.checked = false;
+            }
+          } else {
+            // 如果“永不过期”被取消，启用所有过期时间按钮
+            dom.expirationOptionsContainer
+              .querySelectorAll("button")
+              .forEach((btn) => {
+                btn.disabled = false;
+                btn.classList.remove("cursor-not-allowed");
+                btn.classList.add("hover:bg-gray-200");
+              });
+            // 重新默认选中1小时
+            const oneHourButton = dom.expirationOptionsContainer.querySelector(
+              'button[data-value="1h"]'
+            );
+            if (oneHourButton) {
+              oneHourButton.classList.remove(
+                "bg-gray-100",
+                "text-gray-700",
+                "hover:bg-gray-200"
+              );
+              oneHourButton.classList.add("bg-sky-500/60", "text-white");
+              selectedExpiration = "1h";
+            }
+          }
+        });
+      }
+
+      // ⭐ 新增：阅后即焚选项的事件监听 (互斥逻辑)
+      if (dom.deleteAfterReadingCheckbox) {
+        dom.deleteAfterReadingCheckbox.addEventListener("change", (event) => {
+          if (event.target.checked) {
+            // 如果“阅后即焚”被选中，取消“永不过期”并禁用它
+            if (dom.neverExpiresCheckbox) {
+              dom.neverExpiresCheckbox.checked = false;
+              dom.neverExpiresCheckbox.disabled = true;
+              dom.neverExpiresCheckbox
+                .closest("label")
+                .classList.add("opacity-50");
+            }
+          } else {
+            // 如果“阅后即焚”被取消，启用“永不过期”
+            if (dom.neverExpiresCheckbox) {
+              dom.neverExpiresCheckbox.disabled = false;
+              dom.neverExpiresCheckbox
+                .closest("label")
+                .classList.remove("opacity-50");
+            }
+          }
+        });
+      }
+
+      // 按钮禁用状态和事件
       if (dom.noteContentInput && dom.createNoteButton) {
         const toggleButtonState = () => {
           // ⭐ 修改：在有笔记内容或有文件时启用按钮
