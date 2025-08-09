@@ -68,6 +68,11 @@ import fileIcons from "../data/fileIcons.json";
       errorPopupContent: document.getElementById("error-popup-content"),
       errorPopupMessage: document.getElementById("error-popup-message"),
       errorPopupCloseBtn: document.getElementById("error-popup-close-btn"),
+
+      shareEmailButton: document.getElementById("share-email-button"),
+
+      copyIcon: document.getElementById("copy-icon"),
+      checkIcon: document.getElementById("check-icon"),
     }; // --- 辅助函数 ---
 
     function generateUniqueId() {
@@ -104,7 +109,7 @@ import fileIcons from "../data/fileIcons.json";
       });
     }
 
-    // ⭐ 新增: 显示自定义错误提示弹窗的函数
+    //显示自定义错误提示弹窗的函数
     function showErrorPopup(message) {
       if (dom.errorPopup && dom.errorPopupMessage) {
         dom.errorPopupMessage.textContent = message;
@@ -117,7 +122,7 @@ import fileIcons from "../data/fileIcons.json";
       }
     }
 
-    // ⭐ 新增: 隐藏自定义错误提示弹窗的函数
+    //隐藏自定义错误提示弹窗的函数
     function hideErrorPopup() {
       if (dom.errorPopup) {
         dom.errorPopupContent.classList.remove("scale-100", "opacity-100");
@@ -248,7 +253,7 @@ import fileIcons from "../data/fileIcons.json";
 
       const noteContent = dom.noteContentInput.value.trim();
       if (!noteContent && uploadedFiles.length === 0) {
-        // ⭐ 修改：允许只上传文件
+        //修改：允许只上传文件
         alert("笔记内容和附件不能同时为空！");
         return;
       }
@@ -353,7 +358,7 @@ import fileIcons from "../data/fileIcons.json";
           );
 
           finalKeyBase64 = arrayBufferToBase64(encryptedKey);
-        } // ⭐ 新增：处理和加密文件
+        } //新增：处理和加密文件
 
         const encryptedFiles = await Promise.all(
           uploadedFiles.map(async (file) => {
@@ -374,7 +379,7 @@ import fileIcons from "../data/fileIcons.json";
               name: file.name,
               type: file.type,
               size: file.size,
-              data: encryptedFileContentBase64, // ⭐ 修改：存储加密后的数据
+              data: encryptedFileContentBase64, // 存储加密后的数据
             };
           })
         ); // 8. 准备发送给后端的数据
@@ -390,7 +395,7 @@ import fileIcons from "../data/fileIcons.json";
           expiration: expirationTtl,
           deleteAfterReading: deleteAfterReading,
           hasPassword: !!notePassword,
-          files: encryptedFiles, // ⭐ 修复点：将加密后的文件数组添加到 newNote
+          files: encryptedFiles, //修复点：将加密后的文件数组添加到 newNote
           createdAt: new Date().toISOString(),
         }; // 发送 POST 请求到 Pages Function
 
@@ -508,9 +513,18 @@ import fileIcons from "../data/fileIcons.json";
       } finally {
         dom.createNoteButton.disabled = false;
       }
-    } // --- 事件处理函数 ---
+    }
 
-    // ⭐ 新增：处理过期选项和永不过期之间的互斥逻辑
+    // 新增：按钮点击动画函数
+    function addButtonClickAnimation(button) {
+      button.addEventListener("click", () => {
+        button.classList.add("scale-90");
+        setTimeout(() => button.classList.remove("scale-90"), 150);
+      });
+    }
+
+    // --- 事件处理函数 ---
+    //处理过期选项和永不过期之间的互斥逻辑
     function updateExpirationOptions(isNeverExpires, isDeleteAfterReading) {
       const buttons = dom.expirationOptionsContainer.querySelectorAll("button");
       if (isNeverExpires || isDeleteAfterReading) {
@@ -660,7 +674,7 @@ import fileIcons from "../data/fileIcons.json";
             );
             selectedExpiration = targetButton.dataset.value;
 
-            // ⭐ 新增逻辑：选中过期时间后，取消“永不过期”
+            //新增逻辑：选中过期时间后，取消“永不过期”
             if (dom.neverExpiresCheckbox) {
               dom.neverExpiresCheckbox.checked = false;
             }
@@ -676,7 +690,7 @@ import fileIcons from "../data/fileIcons.json";
         });
       }
 
-      // ⭐ 新增：永不过期选项的事件监听
+      //永不过期选项的事件监听
       if (dom.neverExpiresCheckbox) {
         dom.neverExpiresCheckbox.addEventListener("change", (event) => {
           if (event.target.checked && dom.deleteAfterReadingCheckbox.checked) {
@@ -693,7 +707,7 @@ import fileIcons from "../data/fileIcons.json";
         });
       }
 
-      // ⭐ 核心修复：阅后即焚选项的事件监听
+      // 阅后即焚选项的事件监听
       if (dom.deleteAfterReadingCheckbox) {
         dom.deleteAfterReadingCheckbox.addEventListener("change", (event) => {
           if (event.target.checked && dom.neverExpiresCheckbox.checked) {
@@ -710,12 +724,12 @@ import fileIcons from "../data/fileIcons.json";
         });
       }
 
-      // ⭐ 新增：为错误提示弹窗的关闭按钮添加事件监听
+      // 为错误提示弹窗的关闭按钮添加事件监听
       if (dom.errorPopupCloseBtn) {
         dom.errorPopupCloseBtn.addEventListener("click", hideErrorPopup);
       }
 
-      // ⭐ 新增：点击弹窗背景也可以关闭弹窗
+      // 点击弹窗背景也可以关闭弹窗
       if (dom.errorPopupOverlay) {
         dom.errorPopupOverlay.addEventListener("click", hideErrorPopup);
       }
@@ -723,7 +737,7 @@ import fileIcons from "../data/fileIcons.json";
       // 按钮禁用状态和事件
       if (dom.noteContentInput && dom.createNoteButton) {
         const toggleButtonState = () => {
-          // ⭐ 修改：在有笔记内容或有文件时启用按钮
+          //在有笔记内容或有文件时启用按钮
           dom.createNoteButton.disabled =
             dom.noteContentInput.value.trim() === "" &&
             uploadedFiles.length === 0;
@@ -754,6 +768,81 @@ import fileIcons from "../data/fileIcons.json";
             handleCloseModal();
           }
         });
+      }
+
+      // ⭐ 整合：复制按钮和链接的交互逻辑
+      const copyAnimation = (element) => {
+        element.classList.add("scale-90");
+        setTimeout(() => element.classList.remove("scale-90"), 150);
+      };
+
+      const handleCopyClick = (event) => {
+        // 阻止默认的链接跳转行为
+        if (event.preventDefault) {
+          event.preventDefault();
+        }
+
+        const element = event.currentTarget;
+
+        element.classList.add("scale-90");
+        setTimeout(() => element.classList.remove("scale-90"), 150);
+
+        // 执行复制逻辑
+        dom.encryptedLinkDisplay.select();
+        dom.encryptedLinkDisplay.setSelectionRange(0, 99999);
+        navigator.clipboard
+          .writeText(dom.encryptedLinkDisplay.value)
+          .then(() => {
+            // 切换图标
+            dom.copyIcon.classList.add("hidden");
+            dom.checkIcon.classList.remove("hidden");
+
+            // ✨ 新增：将不透明度从 0 变为 1，实现淡入效果
+            dom.copyFeedback.classList.remove("opacity-0");
+            dom.copyFeedback.classList.add("opacity-100");
+
+            setTimeout(() => {
+              // 恢复初始状态
+              dom.copyIcon.classList.remove("hidden");
+              dom.checkIcon.classList.add("hidden");
+
+              // ✨ 新增：将不透明度从 1 变为 0，实现淡出效果
+              dom.copyFeedback.classList.remove("opacity-100");
+              dom.copyFeedback.classList.add("opacity-0");
+            }, 1000);
+          })
+          .catch((err) => {
+            console.error("复制失败:", err);
+            alert("复制链接失败，请手动复制。");
+          });
+      };
+
+      // ⭐ 新增：按钮点击动画
+      if (dom.shareEmailButton) {
+        addButtonClickAnimation(dom.shareEmailButton);
+        dom.shareEmailButton.addEventListener("click", () => {
+          const encryptedLink = dom.encryptedLinkDisplay.value;
+          const recipientEmail = prompt("请输入收件人邮箱地址：");
+          if (recipientEmail) {
+            const subject = encodeURIComponent("Transcrypt - 加密笔记分享");
+            const body = encodeURIComponent(
+              `您好，\n\n这是我通过 Transcrypt 分享给您的加密笔记链接，请妥善保管：\n\n${encryptedLink}`
+            );
+            window.location.href = `mailto:${recipientEmail}?subject=${subject}&body=${body}`;
+          }
+        });
+      }
+
+      if (
+        dom.copyLinkButton &&
+        dom.copyIcon &&
+        dom.checkIcon &&
+        dom.encryptedLinkDisplay &&
+        dom.copyFeedback
+      ) {
+        // 为复制按钮和链接本身添加相同的事件处理函数
+        dom.copyLinkButton.addEventListener("click", handleCopyClick);
+        dom.encryptedLinkDisplay.addEventListener("click", handleCopyClick);
       }
     } // 页面加载时执行初始化
 

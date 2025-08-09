@@ -276,30 +276,74 @@
           readonly
           class="w-full p-3 pr-12 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-800 dark:text-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
         />
-        <button
-          id="copy-link-button"
-          title="复制链接"
-          class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-300 hover:text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300 rounded-full p-1"
+        <div
+          class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center space-x-2"
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            class="w-5 h-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            stroke-width="2"
+          <!-- 邮件分享按钮 -->
+          <button
+            id="share-email-button"
+            title="通过邮件分享"
+            class="p-2 rounded-lg text-gray-500 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300 transition transform"
           >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m-4 5h-4l-1 95"
-            ></path>
-          </svg>
-        </button>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="w-5 h-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+              ></path>
+            </svg>
+          </button>
+
+          <!-- 复制按钮 -->
+          <button
+            id="copy-link-button"
+            title="复制链接"
+            class="p-2 rounded-lg text-gray-500 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300 transition transform"
+          >
+            <!-- 默认图标 -->
+            <svg
+              id="copy-icon"
+              xmlns="http://www.w3.org/2000/svg"
+              class="w-5 h-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3"
+              ></path>
+            </svg>
+            <!-- 对勾图标 -->
+            <svg
+              id="check-icon"
+              xmlns="http://www.w3.org/2000/svg"
+              class="w-5 h-5 text-green-500 hidden"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M5 13l4 4L19 7"></path>
+            </svg>
+          </button>
+        </div>
       </div>
       <p
         id="copy-feedback"
-        class="text-xs text-green-500 mt-1 hidden text-right"
+        class="text-xs text-green-500 mt-1 text-right transition-opacity duration-300 ease-in-out opacity-0"
       >
         已复制！
       </p>
@@ -329,70 +373,70 @@
       </button>
     </div>
   </div>
-</div>
 
-<!-- “永不过期”和“阅后即焚”选项错误提示 -->
-<div
-  id="error-popup"
-  class="fixed inset-0 z-50 flex items-center justify-center hidden"
->
+  <!-- “永不过期”和“阅后即焚”选项错误提示 -->
   <div
-    class="absolute inset-0 bg-gray-900 opacity-75 transition-opacity duration-300"
-    id="error-popup-overlay"
+    id="error-popup"
+    class="fixed inset-0 z-50 flex items-center justify-center hidden"
   >
-  </div>
-
-  <div
-    id="error-popup-content"
-    class="relative bg-white rounded-xl shadow-2xl p-6 sm:p-8 max-w-sm w-full mx-4 transform scale-90 opacity-0 transition-all duration-300 ease-out"
-  >
-    <div class="flex flex-col items-center">
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        class="h-16 w-16 text-red-500 mb-4"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-      >
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="2"
-          d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-      </svg>
-
-      <h3 class="text-xl font-bold text-gray-900 mb-2">操作冲突</h3>
-      <p class="text-sm text-center text-gray-600" id="error-popup-message">
-        请先取消一个选项。
-      </p>
+    <div
+      class="absolute inset-0 bg-gray-900 opacity-75 transition-opacity duration-300"
+      id="error-popup-overlay"
+    >
     </div>
 
-    <div class="mt-6">
-      <button
-        id="error-popup-close-btn"
-        class="w-full px-4 py-3 text-white text-base font-semibold bg-red-500 rounded-lg hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors"
-      >
-        我明白了
-      </button>
+    <div
+      id="error-popup-content"
+      class="relative bg-white rounded-xl shadow-2xl p-6 sm:p-8 max-w-sm w-full mx-4 transform scale-90 opacity-0 transition-all duration-300 ease-out"
+    >
+      <div class="flex flex-col items-center">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          class="h-16 w-16 text-red-500 mb-4"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+
+        <h3 class="text-xl font-bold text-gray-900 mb-2">操作冲突</h3>
+        <p class="text-sm text-center text-gray-600" id="error-popup-message">
+          请先取消一个选项。
+        </p>
+      </div>
+
+      <div class="mt-6">
+        <button
+          id="error-popup-close-btn"
+          class="w-full px-4 py-3 text-white text-base font-semibold bg-red-500 rounded-lg hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors"
+        >
+          我明白了
+        </button>
+      </div>
     </div>
   </div>
-</div>
 
-<script>
-  if (typeof window !== "undefined") {
-    const noteContentInput = document.getElementById("note-content");
-    const characterCountElement = document.getElementById("character-count");
+  <script>
+    if (typeof window !== "undefined") {
+      const noteContentInput = document.getElementById("note-content");
+      const characterCountElement = document.getElementById("character-count");
 
-    if (noteContentInput && characterCountElement) {
-      // 更新计数器的函数
-      const updateCharacterCount = () => {
-        const count = noteContentInput.value.length;
-        characterCountElement.textContent = `${count} 字符`;
-      }; // 初始加载时执行一次
+      if (noteContentInput && characterCountElement) {
+        // 更新计数器的函数
+        const updateCharacterCount = () => {
+          const count = noteContentInput.value.length;
+          characterCountElement.textContent = `${count} 字符`;
+        }; // 初始加载时执行一次
 
-      updateCharacterCount(); // 监听输入事件
+        updateCharacterCount(); // 监听输入事件
 
-      noteContentInput.addEventListener("input", updateCharacterCount);
+        noteContentInput.addEventListener("input", updateCharacterCount);
+      }
     }
-  }
-</script>
+  </script>
+</div>
