@@ -5,32 +5,47 @@
 <main
   class="flex-grow flex flex-col lg:flex-row p-6 space-y-6 lg:space-y-0 lg:space-x-6"
 >
-  <div class="flex-grow bg-white rounded-lg shadow-md overflow-hidden">
-    <textarea
-      id="note-content"
-      placeholder="在此输入您的笔记..."
-      class="w-full h-full p-6 text-lg font-mono
-          bg-white dark:bg-gray-900 placeholder-opacity-50
-          text-gray-900 dark:text-gray-100
-          border border-gray-300 dark:border-gray-700
-          rounded-2xl font-bold relative
-          shadow-sm focus:shadow-lg focus:border-blue-500
-          outline-none resize-none transition-all duration-200
-          scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-transparent
-          sm:text-base md:text-lg lg:text-xl"
-    ></textarea>
+  <div class="flex-grow flex flex-col space-y-6">
     <div
-      id="character-count"
-      class="absolute bottom-4 right-4 text-sm text-gray-500 font-medium"
+      class="flex-grow bg-white rounded-lg shadow-md overflow-hidden relative"
     >
-      0 字符
+      <textarea
+        id="note-content"
+        placeholder="在此输入您的笔记 (支持 Markdown)..."
+        class="w-full h-full p-6 text-lg font-mono
+               bg-white dark:bg-gray-900 placeholder-opacity-50
+               text-gray-900 dark:text-gray-100
+               border border-gray-300 dark:border-gray-700
+               rounded-2xl font-bold relative
+               shadow-sm focus:shadow-lg focus:border-blue-500
+               outline-none resize-none transition-all duration-200
+               scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-transparent
+               sm:text-base md:text-lg lg:text-xl"
+      ></textarea>
+      <div
+        id="character-count"
+        class="absolute bottom-4 right-4 text-sm text-gray-500 font-medium"
+      >
+        0 字符
+      </div>
+    </div>
+    <div
+      class="flex-grow bg-white dark:bg-gray-900 rounded-lg shadow-md p-6 overflow-y-auto"
+    >
+      <h3 class="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">
+        预览
+      </h3>
+      <div
+        id="note-preview"
+        class="prose prose-indigo dark:prose-invert max-w-none leading-relaxed"
+      >
+      </div>
     </div>
   </div>
 
   <aside
     class="w-full lg:w-96 bg-white rounded-lg shadow-md p-6 flex flex-col space-y-6"
   >
-    <!-- 密码输入区域 -->
     <div>
       <label
         for="note-password"
@@ -47,7 +62,6 @@
           id="toggle-password"
           class="absolute right-10 p-1 text-gray-500 hover:text-gray-700 focus:outline-none"
         >
-          <!-- 眼睛图标 -->
           <svg
             xmlns="http://www.w3.org/2000/svg"
             class="w-5 h-5 hidden"
@@ -68,7 +82,6 @@
             ></path>
           </svg>
 
-          <!-- 眼睛关 -->
           <svg
             xmlns="http://www.w3.org/2000/svg"
             class="w-5 h-5"
@@ -125,7 +138,6 @@
       </div>
     </div>
 
-    <!-- 过期选项 -->
     <div>
       <label class="block text-sm font-semibold text-gray-700 mb-2"
         >过期延迟</label
@@ -157,7 +169,6 @@
       </div>
     </div>
 
-    <!-- 永不过期 -->
     <div class="flex items-center justify-between">
       <span class="text-sm font-semibold text-gray-700">永不过期</span>
       <label class="relative inline-flex items-center cursor-pointer">
@@ -169,7 +180,6 @@
       </label>
     </div>
 
-    <!-- 阅后即焚 -->
     <div class="flex items-center justify-between">
       <span class="text-sm font-semibold text-gray-700">阅后即焚</span>
       <label class="relative inline-flex items-center cursor-pointer">
@@ -181,7 +191,6 @@
       </label>
     </div>
 
-    <!-- 附加文件 -->
     <div>
       <button
         id="upload-btn"
@@ -232,7 +241,6 @@
       </div>
     </div>
 
-    <!-- 创建按钮 -->
     <div class="mt-auto pt-6">
       <button
         id="create-note-button"
@@ -252,7 +260,6 @@
     id="success-modal-content"
     class="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl p-8 w-full max-w-md transform transition-transform duration-300 scale-95 opacity-0"
   >
-    <!-- 标题 -->
     <h2
       class="text-2xl font-bold text-center text-gray-800 dark:text-white mb-3"
     >
@@ -262,7 +269,6 @@
       您的加密笔记已准备就绪，可分享链接或二维码。
     </p>
 
-    <!-- 链接部分 -->
     <div class="mb-6">
       <label
         class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
@@ -279,7 +285,6 @@
         <div
           class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center space-x-2"
         >
-          <!-- 邮件分享按钮 -->
           <button
             id="share-email-button"
             title="通过邮件分享"
@@ -301,13 +306,11 @@
             </svg>
           </button>
 
-          <!-- 复制按钮 -->
           <button
             id="copy-link-button"
             title="复制链接"
             class="p-2 rounded-lg text-gray-500 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300 transition transform"
           >
-            <!-- 默认图标 -->
             <svg
               id="copy-icon"
               xmlns="http://www.w3.org/2000/svg"
@@ -323,7 +326,6 @@
                 d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3"
               ></path>
             </svg>
-            <!-- 对勾图标 -->
             <svg
               id="check-icon"
               xmlns="http://www.w3.org/2000/svg"
@@ -349,7 +351,6 @@
       </p>
     </div>
 
-    <!-- 二维码部分 -->
     <div class="mb-6">
       <label
         class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
@@ -363,7 +364,6 @@
       </div>
     </div>
 
-    <!-- 操作按钮 -->
     <div class="flex justify-end">
       <button
         id="close-modal-button"
@@ -373,70 +373,87 @@
       </button>
     </div>
   </div>
+</div>
 
-  <!-- “永不过期”和“阅后即焚”选项错误提示 -->
+<div
+  id="error-popup"
+  class="fixed inset-0 z-50 flex items-center justify-center hidden"
+>
   <div
-    id="error-popup"
-    class="fixed inset-0 z-50 flex items-center justify-center hidden"
+    class="absolute inset-0 bg-gray-900 opacity-75 transition-opacity duration-300"
+    id="error-popup-overlay"
   >
-    <div
-      class="absolute inset-0 bg-gray-900 opacity-75 transition-opacity duration-300"
-      id="error-popup-overlay"
-    >
-    </div>
-
-    <div
-      id="error-popup-content"
-      class="relative bg-white rounded-xl shadow-2xl p-6 sm:p-8 max-w-sm w-full mx-4 transform scale-90 opacity-0 transition-all duration-300 ease-out"
-    >
-      <div class="flex flex-col items-center">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          class="h-16 w-16 text-red-500 mb-4"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-        </svg>
-
-        <h3 class="text-xl font-bold text-gray-900 mb-2">操作冲突</h3>
-        <p class="text-sm text-center text-gray-600" id="error-popup-message">
-          请先取消一个选项。
-        </p>
-      </div>
-
-      <div class="mt-6">
-        <button
-          id="error-popup-close-btn"
-          class="w-full px-4 py-3 text-white text-base font-semibold bg-red-500 rounded-lg hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors"
-        >
-          我明白了
-        </button>
-      </div>
-    </div>
   </div>
 
-  <script>
-    if (typeof window !== "undefined") {
+  <div
+    id="error-popup-content"
+    class="relative bg-white rounded-xl shadow-2xl p-6 sm:p-8 max-w-sm w-full mx-4 transform scale-90 opacity-0 transition-all duration-300 ease-out"
+  >
+    <div class="flex flex-col items-center">
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        class="h-16 w-16 text-red-500 mb-4"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+      </svg>
+
+      <h3 class="text-xl font-bold text-gray-900 mb-2">操作冲突</h3>
+      <p class="text-sm text-center text-gray-600" id="error-popup-message">
+        请先取消一个选项。
+      </p>
+    </div>
+
+    <div class="mt-6">
+      <button
+        id="error-popup-close-btn"
+        class="w-full px-4 py-3 text-white text-base font-semibold bg-red-500 rounded-lg hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors"
+      >
+        我明白了
+      </button>
+    </div>
+  </div>
+</div>
+
+<script is:inline>
+  if (typeof window !== "undefined") {
+    // 动态加载 markdown-it 库
+    const script = document.createElement("script");
+    script.src =
+      "https://cdn.jsdelivr.net/npm/markdown-it@13.0.1/dist/markdown-it.min.js";
+    script.onload = () => {
+      const md = new markdownit();
+
       const noteContentInput = document.getElementById("note-content");
       const characterCountElement = document.getElementById("character-count");
+      const notePreviewElement = document.getElementById("note-preview");
 
-      if (noteContentInput && characterCountElement) {
-        // 更新计数器的函数
-        const updateCharacterCount = () => {
+      if (noteContentInput && characterCountElement && notePreviewElement) {
+        // 更新字符计数器和 Markdown 预览的函数
+        const updateContent = () => {
+          // 更新字符计数
           const count = noteContentInput.value.length;
           characterCountElement.textContent = `${count} 字符`;
-        }; // 初始加载时执行一次
 
-        updateCharacterCount(); // 监听输入事件
+          // 更新 Markdown 预览
+          const markdownText = noteContentInput.value;
+          const htmlContent = md.render(markdownText);
+          notePreviewElement.innerHTML = htmlContent;
+        };
 
-        noteContentInput.addEventListener("input", updateCharacterCount);
+        // 初始加载时执行一次
+        updateContent();
+
+        // 监听输入事件，实时更新内容
+        noteContentInput.addEventListener("input", updateContent);
       }
-    }
-  </script>
-</div>
+    };
+    document.head.appendChild(script);
+  }
+</script>
