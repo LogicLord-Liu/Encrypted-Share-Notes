@@ -82,3 +82,5 @@ Easily encrypt your content in the browser and share it via a unique link or QR 
 # 📄 License
 
 EPL-2.0 License © 2025 [Vannik-Liu](https://github.com/LogicLord-Liu/)
+
+![Alt](https://repobeats.axiom.co/api/embed/ed3b4a8b85dcbfc63404eda77d8c8b7a61f38364.svg "Repobeats analytics image")
