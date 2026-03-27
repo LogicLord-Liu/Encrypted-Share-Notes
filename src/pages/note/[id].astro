@@ -1,536 +1,294 @@
 ---
+// src/pages/note/[id].astro
 import Layout from "../../layouts/Layout.astro";
-
-// 在服务器端获取路由参数
 const { id } = Astro.params;
 ---
 
-<Layout title="查看笔记 - Enclosed">
-  <main class="flex flex-col items-center justify-center min-h-screen">
-    <div class="bg-white p-8 rounded-lg shadow-lg w-full max-w-2xl text-center">
-      <h1 class="text-3xl font-bold mb-6 text-gray-800">笔记内容</h1>
+<Layout title="查看笔记 - Transcrypt">
+  <main class="flex flex-col items-center justify-center min-h-screen p-4">
+    <div
+      class="bg-white p-6 sm:p-10 rounded-2xl shadow-2xl w-full max-w-3xl text-center"
+    >
+      <h1 class="text-3xl font-bold mb-8 text-gray-800 tracking-tight">
+        笔记内容
+      </h1>
 
-      <div id="note-display-area">
-        <p class="text-gray-600">正在加载笔记...</p>
+      <div id="status-area">
+        <div class="flex flex-col items-center">
+          <div
+            class="animate-spin rounded-full h-10 w-10 border-b-2 border-sky-500 mb-4"
+          >
+          </div>
+          <p class="text-gray-500">正在安全解密中...</p>
+        </div>
       </div>
 
-      <div id="password-form-container" class="hidden"></div>
+      <div id="unlock-area" class="hidden mt-4 animate-fade-in">
+        <div class="bg-sky-50 p-6 rounded-2xl border border-sky-100">
+          <div class="text-sky-600 mb-4">
+            <svg
+              class="w-12 h-12 mx-auto"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              ><path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+              ></path></svg
+            >
+          </div>
+          <h2 class="text-xl font-bold text-gray-800 mb-2">此笔记受密码保护</h2>
+          <p class="text-sm text-gray-500 mb-6">请输入创建者设置的访问密码</p>
+          <input
+            type="password"
+            id="input-pw"
+            class="w-full px-5 py-3 border-2 border-sky-100 rounded-xl mb-4 focus:border-sky-400 outline-none transition-all text-center text-lg"
+            placeholder="••••••••"
+          />
+          <button
+            id="unlock-btn"
+            class="w-full py-4 bg-sky-500 text-white rounded-xl font-bold hover:bg-sky-600 shadow-lg shadow-sky-200 transition-all active:scale-95"
+            >解锁并查看</button
+          >
+        </div>
+      </div>
 
-      <a href="/" class="mt-8 inline-block text-sky-600 hover:underline"
-        >返回首页</a
-      >
+      <div id="content-area" class="hidden text-left mt-4 animate-fade-in">
+        <div
+          id="burn-warning"
+          class="hidden bg-amber-50 border-l-4 border-amber-500 p-4 mb-6 rounded-r-lg shadow-sm"
+        >
+          <div class="flex items-center">
+            <div class="flex-shrink-0">
+              <svg
+                class="h-5 w-5 text-amber-500"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path
+                  fill-rule="evenodd"
+                  d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                  clip-rule="evenodd"></path>
+              </svg>
+            </div>
+            <div class="ml-3">
+              <p class="text-sm text-amber-800 font-bold">
+                ⚠️ 注意：此笔记为“阅后即焚”模式
+              </p>
+              <p class="text-xs text-amber-700 mt-1">
+                内容已从服务器删除。关闭或刷新此页面后，您将无法再次查看。请及时备份重要信息。
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between mb-4">
+          <span
+            class="text-xs font-bold text-gray-400 uppercase tracking-widest"
+            >解密正文</span
+          >
+          <span id="note-date" class="text-xs text-gray-400"></span>
+        </div>
+
+        <div
+          id="note-text"
+          class="prose max-w-none p-6 bg-gray-50 rounded-2xl border border-gray-100 min-h-[150px] whitespace-pre-wrap break-all text-gray-800 leading-relaxed shadow-inner"
+        >
+        </div>
+
+        <div id="file-list-container" class="mt-8 hidden">
+          <div class="flex items-center mb-3">
+            <svg
+              class="w-5 h-5 text-gray-400 mr-2"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              ><path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828L18 9.828a4 4 0 10-5.656-5.656L6.343 9.172a6 6 0 108.485 8.485"
+              ></path></svg
+            >
+            <h3 class="font-bold text-gray-700">安全解密的附件</h3>
+          </div>
+          <ul id="file-list" class="grid grid-cols-1 gap-2"></ul>
+        </div>
+      </div>
+
+      <div class="mt-10 pt-6 border-t border-gray-50">
+        <a
+          href="/"
+          class="text-sm font-semibold text-sky-500 hover:text-sky-600 transition flex items-center justify-center gap-2"
+        >
+          <svg
+            class="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            ><path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg
+          >
+          新建我的加密笔记
+        </a>
+      </div>
     </div>
   </main>
-
-  <div
-    id="custom-alert-modal"
-    class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 hidden transition-opacity duration-300"
-  >
-    <div
-      class="bg-white p-8 rounded-xl shadow-2xl max-w-sm w-full mx-4 transform scale-95 transition-transform duration-300"
-    >
-      <h3 class="text-2xl font-bold text-red-600 mb-4 text-center">警告</h3>
-      <p id="alert-message" class="text-gray-700 text-center mb-6">
-        您已连续输错密码三次，该笔记已被永久删除。
-      </p>
-      <button
-        id="alert-close-button"
-        class="w-full py-3 rounded-xl bg-red-500 text-white font-medium hover:bg-red-600 transition-colors"
-      >
-        确定
-      </button>
-    </div>
-  </div>
 </Layout>
 
 <script is:inline>
-  if (typeof window !== "undefined") {
-    const url = new URL(window.location.href);
-    const noteId = url.pathname.split("/").pop();
-    const noteDisplayArea = document.getElementById("note-display-area");
-    const passwordFormContainer = document.getElementById(
-      "password-form-container"
-    );
-    const isProduction = window.location.hostname !== "localhost";
-    let deleteTriggered = false;
+  const b642buf = (b64) => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
 
-    // 密码尝试次数变量和上限
-    let passwordAttempts = 0;
-    const MAX_ATTEMPTS = 3;
+  async function init() {
+    const statusArea = document.getElementById("status-area");
+    const unlockArea = document.getElementById("unlock-area");
+    const contentArea = document.getElementById("content-area");
+    const burnWarning = document.getElementById("burn-warning");
+    const noteText = document.getElementById("note-text");
+    const fileList = document.getElementById("file-list");
+    const fileContainer = document.getElementById("file-list-container");
+    const noteDate = document.getElementById("note-date");
 
-    // 获取模态框元素
-    const customAlertModal = document.getElementById("custom-alert-modal");
-    const alertMessage = document.getElementById("alert-message");
-    const alertCloseButton = document.getElementById("alert-close-button");
+    const noteId = window.location.pathname.split("/").pop();
+    const hashKey = window.location.hash.substring(1);
 
-    /**
-     * 显示自定义警告模态框
-     * @param {string} message - 要显示的提示信息
-     */
-    function showCustomAlert(message) {
-      if (!customAlertModal || !alertMessage) return;
-      alertMessage.textContent = message;
-      customAlertModal.classList.remove("hidden", "opacity-0");
-      customAlertModal.classList.add("flex", "opacity-100");
-      document.body.style.overflow = "hidden";
+    try {
+      const res = await fetch(`/api/note/${noteId}`);
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || "内容已失效或已被销毁");
+      }
+      const note = await res.json();
 
-      alertCloseButton.addEventListener(
-        "click",
-        () => {
-          hideCustomAlert();
-          window.location.href = "/";
-        },
-        { once: true }
-      );
-    }
+      const decryptAndShow = async (masterKeyBuf) => {
+        try {
+          const iv = b642buf(note.iv);
+          const mKey = await window.crypto.subtle.importKey(
+            "raw",
+            masterKeyBuf,
+            "AES-GCM",
+            true,
+            ["decrypt"],
+          );
 
-    /**
-     * 隐藏自定义警告模态框
-     */
-    function hideCustomAlert() {
-      if (!customAlertModal) return;
-      customAlertModal.classList.remove("opacity-100");
-      customAlertModal.classList.add("opacity-0");
-      setTimeout(() => {
-        customAlertModal.classList.add("hidden");
-        document.body.style.overflow = "";
-      }, 300);
-    }
+          // 1. 解密正文
+          const decContent = await window.crypto.subtle.decrypt(
+            { name: "AES-GCM", iv },
+            mKey,
+            b642buf(note.content),
+          );
+          noteText.innerText = new TextDecoder().decode(decContent);
 
-    /**
-     * 显示加载失败的错误信息
-     * @param {string} message - 错误信息
-     */
-    function displayError(message) {
-      if (!noteDisplayArea) return;
-      noteDisplayArea.innerHTML = `
-        <div class="bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-xl shadow-sm animate-fade-in">
-          <h3 class="text-lg font-semibold text-center">加载笔记失败</h3>
-          <p class="text-sm text-center mt-2">${message}</p>
-        </div>
-      `;
-    }
+          // 2. 解密附件
+          if (note.files && note.files.length > 0) {
+            fileContainer.classList.remove("hidden");
+            fileList.innerHTML = "";
+            for (const f of note.files) {
+              const decF = await window.crypto.subtle.decrypt(
+                { name: "AES-GCM", iv },
+                mKey,
+                b642buf(f.data),
+              );
+              const blob = new Blob([decF], { type: f.type });
+              const url = URL.createObjectURL(blob);
+              const li = document.createElement("li");
+              li.innerHTML = `
+                      <a href="${url}" download="${f.name}" class="flex items-center justify-between p-3 bg-white border border-gray-100 rounded-xl hover:border-sky-300 hover:shadow-md transition-all group">
+                        <span class="text-gray-700 group-hover:text-sky-600 truncate mr-4">${f.name}</span>
+                        <span class="text-xs bg-sky-50 text-sky-500 px-2 py-1 rounded-md font-bold shrink-0">点击保存</span>
+                      </a>`;
+              fileList.appendChild(li);
+            }
+          }
 
-    /**
-     * 向服务器发送 DELETE 请求以删除笔记
-     * @param {string} id - 笔记的ID
-     */
-    async function deleteNoteFromServer(id) {
-      try {
-        const response = await fetch(`/api/note/${id}`, {
-          method: "DELETE",
-          keepalive: true,
-        });
-        if (!response.ok) {
-          console.error(`服务器删除笔记 ${id} 失败:`, response.statusText);
-          throw new Error("服务器删除笔记失败");
+          // 3. 处理 UI 显示
+          if (note.createdAt) {
+            noteDate.innerText = new Date(note.createdAt).toLocaleString();
+          }
+
+          // ✨ 关键逻辑：如果是阅后即焚，显示醒目提示
+          if (note.deleteAfterReading) {
+            burnWarning.classList.remove("hidden");
+          }
+
+          statusArea.classList.add("hidden");
+          unlockArea.classList.add("hidden");
+          contentArea.classList.remove("hidden");
+        } catch (e) {
+          console.error("解密出错:", e);
+          throw new Error("解密失败：主密钥无效或文件已损坏");
         }
-        console.log(`笔记 ${id} 已成功从服务器删除。`);
-      } catch (error) {
-        console.error(`删除笔记 ${id} 时出错:`, error);
-      }
-    }
-
-    /**
-     * 渲染笔记内容到页面上
-     * @param {object} note - 笔记数据对象
-     * @param {string} decryptedContent - 解密后的笔记内容
-     * @param {Array<object>} decryptedFiles - 解密后的附件列表
-     */
-    function renderNoteContent(note, decryptedContent, decryptedFiles = []) {
-      if (!noteDisplayArea) return;
-
-      let fileListHtml = "";
-      if (note.files && note.files.length > 0) {
-        fileListHtml = `
-          <div class="mt-6">
-            <div class="flex items-center space-x-2 text-gray-700 mb-3">
-              <svg class="w-5 h-5 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828L18 9.828a4 4 0 10-5.656-5.656L6.343 9.172a6 6 0 108.485 8.485" />
-              </svg>
-              <p class="font-semibold text-base">附件：</p>
-            </div>
-            <ul class="space-y-2 text-sm text-left">
-              ${(isProduction ? note.files : decryptedFiles)
-                .map(
-                  (file) => `
-                    <li>
-                      <a href="${isProduction ? `/api/file/${note.id}/${file.fileId}` : file.url}"
-                        download="${file.name}"
-                        class="flex items-center bg-gray-50 border border-gray-200 px-4 py-2 rounded-md hover:bg-sky-50 transition text-sky-600 hover:text-sky-700">
-                        
-                        <!-- 文件名 + 文件大小 -->
-                        <div class="flex items-center flex-1 min-w-0">
-                          <span class="truncate">${file.name}</span>
-                          ${
-                            !isProduction
-                              ? `<span class="ml-auto pl-4 text-gray-400 text-xs shrink-0">${(file.size / 1024).toFixed(1)} KB</span>`
-                              : ""
-                          }
-                        </div>
-
-                        <svg class="w-4 h-4 ml-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 12v6m0 0l3-3m-3 3l-3-3" />
-                        </svg>
-                      </a>
-                    </li>`
-                )
-                .join("")}
-            </ul>
-          </div>`;
-      }
-      noteDisplayArea.innerHTML = `
-        <article class="prose lg:prose-lg mx-auto text-left break-all whitespace-pre-wrap">
-          <p class="font-medium tracking-wide leading-relaxed text-gray-800">${decryptedContent}</p>
-        </article>
-        <div class="mt-10 pt-6 border-t border-gray-100 text-sm text-gray-700 space-y-4 font-medium tracking-wide leading-6">
-          <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 text-left">
-            <div class="flex items-center gap-2">
-              <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3M16 7V3M4 11h16M5 19h14a2 2 0 0 0 2-2v-6H3v6a2 2 0 0 0 2 2z"/>
-              </svg>
-              <span class="text-gray-800">创建时间：${new Intl.DateTimeFormat(
-                "en-US",
-                {
-                  year: "numeric",
-                  month: "short",
-                  day: "2-digit",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  second: "2-digit",
-                  hour12: false,
-                }
-              )
-                .format(new Date(note.createdAt))
-                .replace(",", "")}</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-              </svg>
-              <span class="text-gray-800">过期时间：${formatExpiration(note.expiration)}</span>
-            </div>
-          </div>
-          ${
-            note.deleteAfterReading
-              ? `<p class="text-red-600 font-semibold text-center tracking-wide">⚠️ 此笔记将在首次阅读后自动删除</p>`
-              : ""
-          }
-          ${fileListHtml}
-        </div>
-      `;
-      if (passwordFormContainer) {
-        passwordFormContainer.innerHTML = "";
-        passwordFormContainer.classList.add("hidden");
-      }
-    }
-
-    /**
-     * 解密笔记附件
-     * @param {Array<object>} files - 加密的附件列表
-     * @param {CryptoKey} cryptoKey - 解密密钥
-     * @param {Uint8Array} ivBuffer - IV
-     * @returns {Promise<Array<object>>} - 解密后的附件列表
-     */
-    async function decryptFiles(files, cryptoKey, ivBuffer) {
-      return Promise.all(
-        files.map(async (file) => {
-          try {
-            const encryptedContentBuffer = Uint8Array.from(
-              atob(file.data),
-              (c) => c.charCodeAt(0)
-            );
-            const decryptedContent = await window.crypto.subtle.decrypt(
-              { name: "AES-GCM", iv: ivBuffer },
-              cryptoKey,
-              encryptedContentBuffer
-            );
-            const blob = new Blob([decryptedContent], { type: file.type });
-            const url = URL.createObjectURL(blob);
-            return {
-              name: file.name,
-              size: file.size,
-              type: file.type,
-              url: url,
-            };
-          } catch (err) {
-            console.error(`文件 ${file.name} 解密失败:`, err);
-            return {
-              name: `文件 ${file.name} (解密失败)`,
-              size: 0,
-              type: "text/plain",
-              url: "#",
-            };
-          }
-        })
-      );
-    }
-
-    /**
-     * 解密笔记内容和密钥
-     * @param {object} note - 笔记数据对象
-     * @returns {Promise<object>} - 包含解密内容、密钥和IV的对象
-     */
-    async function decryptNote(note) {
-      if (!note.key || !note.iv || !note.content) {
-        throw new Error("笔记数据不完整，无法解密。");
-      }
-      const keyBuffer = Uint8Array.from(atob(note.key), (c) => c.charCodeAt(0));
-      const ivBuffer = Uint8Array.from(atob(note.iv), (c) => c.charCodeAt(0));
-      const encryptedContentBuffer = Uint8Array.from(atob(note.content), (c) =>
-        c.charCodeAt(0)
-      );
-      let finalKeyBuffer = keyBuffer;
+      };
 
       if (note.hasPassword) {
-        if (!note.password) {
-          throw new Error("此笔记受密码保护，请输入密码。");
-        }
-        const encoder = new TextEncoder();
-        const passwordKey = await window.crypto.subtle.importKey(
-          "raw",
-          encoder.encode(note.password),
-          { name: "PBKDF2" },
-          false,
-          ["deriveKey"]
-        );
-        const derivedPasswordKey = await window.crypto.subtle.deriveKey(
-          {
-            name: "PBKDF2",
-            salt: ivBuffer,
-            iterations: 100000,
-            hash: "SHA-256",
-          },
-          passwordKey,
-          { name: "AES-GCM", length: 256 },
-          true,
-          ["encrypt", "decrypt"]
-        );
-        try {
-          finalKeyBuffer = await window.crypto.subtle.decrypt(
-            { name: "AES-GCM", iv: ivBuffer },
-            derivedPasswordKey,
-            keyBuffer
-          );
-        } catch (err) {
-          console.error("解密密钥失败:", err);
-          throw new Error("密码错误或解密密钥失败。");
-        }
-      }
+        statusArea.classList.add("hidden");
+        unlockArea.classList.remove("hidden");
 
-      const cryptoKey = await window.crypto.subtle.importKey(
-        "raw",
-        finalKeyBuffer,
-        { name: "AES-GCM", length: 256 },
-        true,
-        ["decrypt"]
-      );
-      const decryptedContent = await window.crypto.subtle.decrypt(
-        { name: "AES-GCM", iv: ivBuffer },
-        cryptoKey,
-        encryptedContentBuffer
-      );
-      const decoder = new TextDecoder();
-      const decryptedText = decoder.decode(decryptedContent);
-      return { content: decryptedText, cryptoKey, ivBuffer };
-    }
+        document.getElementById("unlock-btn").onclick = async () => {
+          const pw = document.getElementById("input-pw").value;
+          if (!pw) return;
 
-    /**
-     * 渲染密码输入表单
-     * @param {object} note - 笔记数据对象
-     */
-    function renderPasswordForm(note) {
-      if (!passwordFormContainer) return;
-
-      renderPasswordUI();
-      bindPasswordFormEvents(note);
-      passwordFormContainer.classList.remove("hidden");
-    }
-
-    function renderPasswordUI() {
-      noteDisplayArea.innerHTML = `
-        <p class="text-gray-500 text-center">🔒 此笔记受密码保护</p>
-      `;
-
-      passwordFormContainer.innerHTML = `
-        <div class="max-w-md mx-auto bg-white border border-gray-100 rounded-3xl shadow-2xl p-6 sm:p-8 space-y-6 animate-fade-in">
-          <div class="space-y-3 text-center">
-            <div class="flex justify-center">
-              <div class="bg-gradient-to-br from-sky-100 to-sky-200 text-sky-600 w-14 h-14 rounded-full flex items-center justify-center shadow-md">
-                <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round"
-                    d="M12 11c.828 0 1.5-.672 1.5-1.5S12.828 8 12 8s-1.5.672-1.5 1.5S11.172 11 12 11zM17 11V9a5 5 0 00-10 0v2m-1 0a2 2 0 00-2 2v5a2 2 0 002 2h12a2 2 0 002-2v-5a2 2 0 00-2-2h-1" />
-                </svg>
-              </div>
-            </div>
-            <h2 class="text-2xl sm:text-3xl font-bold text-gray-800">输入密码以解锁</h2>
-            <p class="text-sm text-gray-500">该笔记内容已加密，请输入正确密码查看。</p>
-          </div>
-
-          <form id="password-form" class="space-y-5">
-            <input
-              id="note-password-input"
-              type="password"
-              placeholder="请输入密码"
-              class="w-full px-5 py-3 text-base border border-gray-300 rounded-xl bg-gray-50 text-gray-700 placeholder-gray-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-400 focus:bg-white transition duration-200"
-              required
-            />
-
-            <div id="password-error-message"
-              class="text-sm text-red-700 bg-red-100 rounded-md py-2 px-3 border border-red-300 hidden transition-opacity duration-200 opacity-0">
-              密码错误。你还有 <span id="attempts-left" class="font-semibold">${MAX_ATTEMPTS}</span> 次机会。
-            </div>
-
-            <button
-              type="submit"
-              class="w-full py-3 rounded-xl bg-sky-500 text-white font-semibold tracking-wide hover:bg-sky-600 active:scale-[0.97] transition duration-200"
-            >
-              🔓 解锁笔记
-            </button>
-          </form>
-        </div>
-      `;
-    }
-
-    function bindPasswordFormEvents(note) {
-      const passwordForm = document.getElementById("password-form");
-      const passwordInput = document.getElementById("note-password-input");
-      const passwordErrorMessage = document.getElementById(
-        "password-error-message"
-      );
-      const attemptsLeftSpan = document.getElementById("attempts-left");
-
-      if (!passwordForm || !passwordInput) return;
-
-      passwordForm.addEventListener("submit", async (e) => {
-        e.preventDefault();
-
-        const password = passwordInput.value.trim();
-        resetErrorState(passwordInput, passwordErrorMessage);
-
-        try {
-          await processNote(note, password);
-        } catch (err) {
-          passwordAttempts++;
-
-          if (passwordAttempts >= MAX_ATTEMPTS) {
-            await deleteNoteFromServer(noteId);
-            showCustomAlert("您已连续输错密码三次，该笔记已被永久删除。");
-            passwordAttempts = 0;
-            return;
+          try {
+            const iv = b642buf(note.iv);
+            const encoder = new TextEncoder();
+            const baseKey = await window.crypto.subtle.importKey(
+              "raw",
+              encoder.encode(pw),
+              "PBKDF2",
+              false,
+              ["deriveKey"],
+            );
+            const derivedKey = await window.crypto.subtle.deriveKey(
+              { name: "PBKDF2", salt: iv, iterations: 100000, hash: "SHA-256" },
+              baseKey,
+              { name: "AES-GCM", length: 256 },
+              true,
+              ["decrypt"],
+            );
+            const mkBuf = await window.crypto.subtle.decrypt(
+              { name: "AES-GCM", iv },
+              derivedKey,
+              b642buf(note.key),
+            );
+            await decryptAndShow(mkBuf);
+          } catch (e) {
+            alert("密码错误，请重新输入");
           }
-
-          showPasswordError(
-            passwordInput,
-            passwordErrorMessage,
-            attemptsLeftSpan
-          );
-        }
-      });
-    }
-
-    function resetErrorState(input, errorBox) {
-      input.classList.remove("border-red-500");
-      input.placeholder = "请输入密码";
-      errorBox.classList.add("hidden", "opacity-0");
-    }
-
-    function showPasswordError(input, errorBox, attemptsLeftSpan) {
-      input.classList.add("border-red-500");
-      input.value = "";
-      input.focus();
-      input.placeholder = "密码错误，请重试";
-
-      errorBox.classList.remove("hidden");
-
-      // 等待下一个渲染帧，确保动画正常触发
-      requestAnimationFrame(() => {
-        errorBox.classList.remove("opacity-0");
-      });
-
-      if (attemptsLeftSpan) {
-        attemptsLeftSpan.textContent = MAX_ATTEMPTS - passwordAttempts;
+        };
+      } else {
+        if (!hashKey) throw new Error("缺少解密凭证 (URL Hash)");
+        await decryptAndShow(b642buf(hashKey));
       }
+    } catch (err) {
+      statusArea.innerHTML = `
+        <div class="bg-red-50 p-6 rounded-2xl border border-red-100 text-red-600">
+            <svg class="w-12 h-12 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            <p class="font-bold">加载失败</p>
+            <p class="text-sm mt-1">${err.message}</p>
+        </div>`;
     }
-
-    /**
-     * 统一处理笔记解密和渲染的函数
-     * @param {object} foundNote - 从服务器获取的笔记数据
-     * @param {string|null} password - 如果有密码，则传递密码
-     */
-    async function processNote(foundNote, password = null) {
-      const decryptionResult = await decryptNote({ ...foundNote, password });
-      const decryptedContent = decryptionResult.content;
-      let decryptedFiles = [];
-      if (!isProduction && foundNote.files && foundNote.files.length > 0) {
-        decryptedFiles = await decryptFiles(
-          foundNote.files,
-          decryptionResult.cryptoKey,
-          decryptionResult.ivBuffer
-        );
-      }
-      renderNoteContent(foundNote, decryptedContent, decryptedFiles);
-
-      if (foundNote.deleteAfterReading) {
-        window.addEventListener("beforeunload", () => {
-          if (!deleteTriggered) {
-            deleteNoteFromServer(foundNote.id);
-            deleteTriggered = true;
-          }
-        });
-      }
-    }
-
-    /**
-     * 加载笔记的入口函数
-     */
-    async function loadNote() {
-      if (!noteId) {
-        displayError("无效的笔记链接。");
-        return;
-      }
-      try {
-        const response = await fetch(`/api/note/${noteId}`);
-        if (!response.ok) {
-          const message =
-            response.status === 404
-              ? "⚠️ 笔记未找到或已过期"
-              : "🚫 加载笔记时发生网络错误";
-          throw new Error(message);
-        }
-        const foundNote = await response.json();
-        if (foundNote.hasPassword) {
-          renderPasswordForm(foundNote);
-        } else {
-          await processNote(foundNote);
-        }
-      } catch (err) {
-        console.error("加载笔记失败:", err);
-        displayError(err.message);
-      }
-    }
-
-    function formatExpiration(seconds) {
-      const days = Math.floor(seconds / 86400);
-      seconds %= 86400;
-      const hours = Math.floor(seconds / 3600);
-      seconds %= 3600;
-      const minutes = Math.floor(seconds / 60);
-      seconds %= 60;
-
-      const parts = [];
-      if (days) parts.push(`${days} day${days > 1 ? "s" : ""}`);
-      if (hours) parts.push(`${hours} hr${hours > 1 ? "s" : ""}`);
-      if (minutes) parts.push(`${minutes} min${minutes > 1 ? "s" : ""}`);
-      if (seconds) parts.push(`${seconds} sec${seconds > 1 ? "s" : ""}`);
-
-      return parts.length ? parts.join(" ") : "0 sec";
-    }
-
-    document.addEventListener("DOMContentLoaded", () => {
-      loadNote();
-    });
   }
+
+  init();
 </script>
+
+<style>
+  .animate-fade-in {
+    animation: fadeIn 0.4s ease-out forwards;
+  }
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+</style>

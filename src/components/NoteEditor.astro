@@ -423,7 +423,6 @@
 
 <script is:inline>
   if (typeof window !== "undefined") {
-    // 动态加载 markdown-it 库
     const script = document.createElement("script");
     script.src =
       "https://cdn.jsdelivr.net/npm/markdown-it@13.0.1/dist/markdown-it.min.js";
@@ -435,22 +434,17 @@
       const notePreviewElement = document.getElementById("note-preview");
 
       if (noteContentInput && characterCountElement && notePreviewElement) {
-        // 更新字符计数器和 Markdown 预览的函数
         const updateContent = () => {
-          // 更新字符计数
           const count = noteContentInput.value.length;
           characterCountElement.textContent = `${count} 字符`;
 
-          // 更新 Markdown 预览
           const markdownText = noteContentInput.value;
           const htmlContent = md.render(markdownText);
           notePreviewElement.innerHTML = htmlContent;
         };
 
-        // 初始加载时执行一次
         updateContent();
 
-        // 监听输入事件，实时更新内容
         noteContentInput.addEventListener("input", updateContent);
       }
     };
