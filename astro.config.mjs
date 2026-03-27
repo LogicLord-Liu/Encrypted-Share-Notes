@@ -14,5 +14,10 @@ export default defineConfig({
 
   integrations: [react()],
   output: "server", // <-- 将输出模式设置为 'server'
-  adapter: cloudflare(), // <-- 使用 Cloudflare 适配器
+  adapter: cloudflare({
+    imageService: 'passthrough',
+    platformProxy: {
+      enabled: true,
+    },
+  }), // <-- 使用 Cloudflare 适配器
 });
