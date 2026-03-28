@@ -7,22 +7,30 @@ const Footer = () => {
     const githubRepoUrl = 'https://github.com/LogicLord-Liu/Encrypted-Share-Notes';
 
     return (
-        <footer className="w-full bg-white border-t border-gray-100 py-4 px-6 text-center text-gray-500 text-xs shadow-sm tracking-wider uppercase font-semibold">
+        <footer className="w-full px-6 py-4 glass-effect border-t border-white/10 text-center text-xs font-semibold tracking-wider uppercase transition-all">
             <div className='container mx-auto'>
-                <p>
-                    Crafted by <a
+                <p className="text-gray-500 dark:text-gray-400">
+                    Crafted by 
+                    <a
                         href={githubProfileUrl}
                         target='_blank'
-                        className='text-blue-600 hover:underline'
+                        className='ml-1 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 hover:opacity-80 transition-opacity'
                         rel="noopener noreferrer"
-                    >Vannik-Liu</a>. Source code available on <a
-                        href={githubRepoUrl} // 请将 'https://github.com/your-github-repo' 替换为你的实际 GitHub 仓库链接
+                    >Vannik-Liu</a>
+                    . Source code available on
+                    <a
+                        href={githubRepoUrl}
                         target="_blank"
-                        className="text-blue-600 hover:underline"
+                        className='ml-1 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 hover:opacity-80 transition-opacity'
                         rel="noopener noreferrer"
-                    >GitHub</a
-                    >. Version <span className='inline-block text-red-600 font-semibold hover:underline hover:scale-105 transition-transform cursor-pointer' title={`版本 ${appVersion}`}>
-                        v{appVersion}</span>
+                    >GitHub</a>
+                    . Version
+                    <span 
+                        className='ml-1 inline-block bg-clip-text text-transparent bg-gradient-to-r from-red-500 to-orange-500 font-bold hover:scale-105 transition-transform cursor-pointer' 
+                        title={`版本 ${appVersion}`}
+                    >
+                        v{appVersion}
+                    </span>
                 </p>
             </div>
         </footer>
