@@ -18,11 +18,15 @@ import NoteEditor from "../components/NoteEditor.astro";
    * 采用 Web Crypto API (AES-GCM + PBKDF2)
    */
   if (typeof window !== "undefined") {
-    // --- 全局状态与配置 ---
     let selectedExpiration = "1hour";
     let uploadedFiles = [];
     const MAX_SIZE_MB = 10;
     const MAX_FILE_SIZE = MAX_SIZE_MB * 1024 * 1024;
+
+    const EXP_BTN_DEFAULT_CLASS =
+      "py-2.5 px-4 rounded-xl text-sm font-medium transition-all bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-blue-500/10 hover:text-blue-600";
+    const EXP_BTN_ACTIVE_CLASS =
+      "py-2.5 px-4 rounded-xl text-sm font-medium transition-all bg-blue-500/90 text-white shadow-sm";
 
     const strengthLabels = ["非常弱", "弱", "中等", "强", "非常强"];
     const strengthColors = [
@@ -39,12 +43,10 @@ import NoteEditor from "../components/NoteEditor.astro";
       notePassword: document.getElementById("note-password"),
       createBtn: document.getElementById("create-note-button"),
 
-      // 选项
       neverExpires: document.getElementById("never-expires"),
       burnAfterRead: document.getElementById("delete-after-reading"),
       expOptions: document.getElementById("expiration-options"),
 
-      // 密码辅助
       togglePwBtn: document.getElementById("toggle-password"),
       eyeOpen: document.getElementById("eye-open"),
       eyeClosed: document.getElementById("eye-closed"),
@@ -52,7 +54,6 @@ import NoteEditor from "../components/NoteEditor.astro";
       pwStrengthText: document.getElementById("password-strength-text"),
       pwStrengthFill: document.getElementById("password-strength-fill"),
 
-      // 文件上传
       uploadBtn: document.getElementById("upload-btn"),
       fileInput: document.getElementById("file-input"),
       uploadArea: document.getElementById("upload-area"),
@@ -60,7 +61,6 @@ import NoteEditor from "../components/NoteEditor.astro";
       errorMsg: document.getElementById("error-message"),
       errorText: document.getElementById("error-text"),
 
-      // 成功弹窗
       successModal: document.getElementById("success-modal"),
       successContent: document.getElementById("success-modal-content"),
       linkDisplay: document.getElementById("encrypted-link-display"),
@@ -71,6 +71,12 @@ import NoteEditor from "../components/NoteEditor.astro";
       qrcodeCanvas: document.getElementById("qrcode-canvas"),
       closeModalBtn: document.getElementById("close-modal-button"),
       shareEmailBtn: document.getElementById("share-email-button"),
+
+      errorPopup: document.getElementById("error-popup"),
+      errorPopupContent: document.getElementById("error-popup-content"),
+      errorPopupOverlay: document.getElementById("error-popup-overlay"),
+      errorPopupCloseBtn: document.getElementById("error-popup-close-btn"),
+      errorPopupMessage: document.getElementById("error-popup-message"),
     };
 
     const buf2b64 = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf)));
@@ -84,19 +90,29 @@ import NoteEditor from "../components/NoteEditor.astro";
       );
     };
 
-    // --- 核心加密逻辑 ---
+    const showErrorPopup = (message = "操作失败，请稍后重试") => {
+      if (!dom.errorPopup) return alert(message);
+
+      dom.errorPopupMessage.textContent = message;
+      dom.errorPopup.classList.remove("hidden");
+
+      setTimeout(() => {
+        dom.errorPopupContent.classList.remove("scale-90", "opacity-0");
+        dom.errorPopupContent.classList.add("scale-100", "opacity-100");
+      }, 10);
+    };
+
     async function handleCreateNote() {
       const content = dom.noteContent.value.trim();
       const password = dom.notePassword.value;
 
       if (!content && uploadedFiles.length === 0)
-        return alert("内容或附件不能为空");
+        return showErrorPopup("内容或附件不能为空");
 
       dom.createBtn.disabled = true;
       dom.createBtn.innerText = "加密中...";
 
       try {
-        // 1. 生成 256 位随机主密钥 (Master Key)
         const masterKey = await window.crypto.subtle.generateKey(
           { name: "AES-GCM", length: 256 },
           true,
@@ -107,18 +123,15 @@ import NoteEditor from "../components/NoteEditor.astro";
           masterKey,
         );
 
-        // 2. 生成随机 IV (12字节)
         const iv = window.crypto.getRandomValues(new Uint8Array(12));
         const encoder = new TextEncoder();
 
-        // 3. 加密笔记正文
         const encContent = await window.crypto.subtle.encrypt(
           { name: "AES-GCM", iv },
           masterKey,
           encoder.encode(content),
         );
 
-        // 4. 加密所有附件
         const encFiles = await Promise.all(
           uploadedFiles.map(async (file) => {
             const buf = await file.arrayBuffer();
@@ -136,12 +149,10 @@ import NoteEditor from "../components/NoteEditor.astro";
           }),
         );
 
-        // 5. 密钥保护与零知识实现
-        let storedKey; // 存入数据库的密钥部分
+        let storedKey;
         const masterKeyB64 = buf2b64(rawMasterKey);
 
         if (password) {
-          // 如果有密码：用密码派生密钥加密 MasterKey
           const pwBuf = encoder.encode(password);
           const baseKey = await window.crypto.subtle.importKey(
             "raw",
@@ -167,7 +178,6 @@ import NoteEditor from "../components/NoteEditor.astro";
           storedKey = masterKeyB64;
         }
 
-        // 6. 准备 Payload
         const noteId = crypto.randomUUID();
         const payload = {
           id: noteId,
@@ -181,7 +191,6 @@ import NoteEditor from "../components/NoteEditor.astro";
           createdAt: new Date().toISOString(),
         };
 
-        // 7. 发送后端
         const response = await fetch("/api/note", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -190,73 +199,98 @@ import NoteEditor from "../components/NoteEditor.astro";
 
         if (!response.ok) throw new Error("服务器保存失败");
 
-        // 8. 生成链接 (密钥放在 # 后，服务器不可见)
         const finalLink = `${window.location.origin}/note/${noteId}#${masterKeyB64}`;
         showSuccess(finalLink);
       } catch (err) {
-        console.error(err);
-        alert("创建笔记失败: " + err.message);
+        console.error("创建笔记失败:", err);
+        showErrorPopup("创建笔记失败: " + err.message);
       } finally {
         dom.createBtn.disabled = false;
         dom.createBtn.innerText = "创建笔记";
       }
     }
 
-    // --- UI 交互逻辑 ---
-
     function getTTLSeconds() {
-      const activeBtn = dom.expOptions.querySelector("button.bg-sky-500\\/60");
       const map = {
         "1hour": 3600,
         "1day": 86400,
         "1week": 604800,
         "1month": 2592000,
       };
-      return map[activeBtn?.dataset.value] || 3600;
+      return map[selectedExpiration] || 3600;
     }
 
     function showSuccess(link) {
       dom.linkDisplay.value = link;
       dom.successModal.classList.remove("hidden");
+
       setTimeout(() => {
         dom.successContent.classList.remove("scale-95", "opacity-0");
         dom.successContent.classList.add("scale-100", "opacity-100");
       }, 10);
 
-      // 生成二维码 (使用 Layout 中引入的库)
       if (window.QRCodeGenerator) {
         window.QRCodeGenerator.toCanvas(dom.qrcodeCanvas, link, { width: 128 });
       }
     }
 
-    // 处理文件选择
     dom.fileInput.onchange = () => {
       const files = Array.from(dom.fileInput.files);
-      let totalSize = 0;
-      uploadedFiles = files.filter((f) => {
+      uploadedFiles = [...uploadedFiles, ...files].filter((f) => {
         if (f.size > MAX_FILE_SIZE) {
-          alert(`文件 ${f.name} 超过 10MB 限制`);
+          showErrorPopup(`文件 ${f.name} 超过 10MB 限制`);
           return false;
         }
-        totalSize += f.size;
         return true;
       });
 
-      dom.fileList.innerHTML = uploadedFiles
-        .map(
-          (f) => `
-        <li class="flex justify-between text-sm py-1 border-b">
-          <span class="truncate pr-4">${f.name}</span>
-          <span class="text-gray-400">${formatBytes(f.size)}</span>
-        </li>
-      `,
-        )
-        .join("");
-
-      dom.uploadArea.classList.toggle("hidden", uploadedFiles.length === 0);
+      renderFileList();
     };
 
-    // 密码强度检测 (zxcvbn)
+    function renderFileList() {
+      dom.fileList.innerHTML = "";
+
+      if (uploadedFiles.length === 0) {
+        dom.uploadArea.classList.add("hidden");
+        return;
+      }
+
+      uploadedFiles.forEach((f, index) => {
+        const fileItem = document.createElement("div");
+        fileItem.className =
+          "flex items-center justify-between py-2 px-3 rounded-lg bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors";
+        fileItem.innerHTML = `
+          <div class="flex items-center gap-2 overflow-hidden">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-500 dark:text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <span class="truncate text-sm text-gray-800 dark:text-gray-200 font-medium">${f.name}</span>
+          </div>
+          <div class="flex items-center gap-3 flex-shrink-0">
+            <span class="text-xs text-gray-500 dark:text-gray-400 min-w-[60px] text-right">${formatBytes(f.size)}</span>
+            <button 
+              class="file-remove-btn text-gray-400 hover:text-red-500 transition-colors" 
+              title="移除文件"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
+          </div>
+        `;
+
+        const removeBtn = fileItem.querySelector(".file-remove-btn");
+        removeBtn.addEventListener("click", () => {
+          uploadedFiles.splice(index, 1);
+          renderFileList();
+        });
+
+        dom.fileList.appendChild(fileItem);
+      });
+
+      dom.uploadArea.classList.remove("hidden");
+    }
+
     dom.notePassword.oninput = () => {
       const val = dom.notePassword.value;
       if (window.zxcvbn && val) {
@@ -270,7 +304,6 @@ import NoteEditor from "../components/NoteEditor.astro";
       }
     };
 
-    // 切换密码可见性
     dom.togglePwBtn.onclick = () => {
       const isVisible = dom.notePassword.type === "text";
       dom.notePassword.type = isVisible ? "password" : "text";
@@ -278,35 +311,39 @@ import NoteEditor from "../components/NoteEditor.astro";
       dom.eyeClosed.classList.toggle("hidden", !isVisible);
     };
 
-    // 复制功能
     dom.copyBtn.onclick = () => {
       dom.linkDisplay.select();
-      navigator.clipboard.writeText(dom.linkDisplay.value).then(() => {
-        dom.copyIcon.classList.add("hidden");
-        dom.checkIcon.classList.remove("hidden");
-        dom.copyFeedback.classList.replace("opacity-0", "opacity-100");
-        setTimeout(() => {
-          dom.copyIcon.classList.remove("hidden");
-          dom.checkIcon.classList.add("hidden");
-          dom.copyFeedback.classList.replace("opacity-100", "opacity-0");
-        }, 2000);
-      });
+      navigator.clipboard
+        .writeText(dom.linkDisplay.value)
+        .then(() => {
+          dom.copyIcon.classList.add("hidden");
+          dom.checkIcon.classList.remove("hidden");
+          dom.copyFeedback.classList.replace("opacity-0", "opacity-100");
+
+          setTimeout(() => {
+            dom.copyIcon.classList.remove("hidden");
+            dom.checkIcon.classList.add("hidden");
+            dom.copyFeedback.classList.replace("opacity-100", "opacity-0");
+          }, 2000);
+        })
+        .catch(() => {
+          showErrorPopup("复制失败，请手动复制链接");
+        });
     };
 
-    // 过期选项互斥
     dom.expOptions.onclick = (e) => {
       const btn = e.target.closest("button");
       if (!btn) return;
-      dom.expOptions
-        .querySelectorAll("button")
-        .forEach(
-          (b) =>
-            (b.className =
-              "py-2 px-4 rounded-md text-sm font-medium transition-colors bg-gray-100 text-gray-700 hover:bg-gray-200"),
-        );
-      btn.className =
-        "py-2 px-4 rounded-md text-sm font-medium transition-colors bg-sky-500/60 text-white";
+
+      dom.expOptions.querySelectorAll("button").forEach((b) => {
+        b.className = EXP_BTN_DEFAULT_CLASS;
+      });
+
+      btn.className = EXP_BTN_ACTIVE_CLASS;
+
       dom.neverExpires.checked = false;
+
+      selectedExpiration = btn.dataset.value;
     };
 
     dom.neverExpires.onchange = () => {
@@ -316,7 +353,6 @@ import NoteEditor from "../components/NoteEditor.astro";
       if (dom.burnAfterRead.checked) dom.neverExpires.checked = false;
     };
 
-    // 邮件分享
     dom.shareEmailBtn.onclick = () => {
       const email = prompt("请输入收件人邮箱:");
       if (email) {
@@ -324,18 +360,49 @@ import NoteEditor from "../components/NoteEditor.astro";
       }
     };
 
-    // 基础事件绑定
-    dom.createBtn.onclick = handleCreateNote;
-    dom.uploadBtn.onclick = () => dom.fileInput.click();
     dom.genPwBtn.onclick = () => {
       const charset =
         "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
       let retVal = "";
-      for (let i = 0; i < 16; ++i)
+      for (let i = 0; i < 16; ++i) {
         retVal += charset.charAt(Math.floor(Math.random() * charset.length));
+      }
       dom.notePassword.value = retVal;
       dom.notePassword.dispatchEvent(new Event("input"));
     };
+
     dom.closeModalBtn.onclick = () => window.location.reload();
+
+    if (dom.errorPopupCloseBtn) {
+      dom.errorPopupCloseBtn.onclick = () => {
+        dom.errorPopup.classList.add("hidden");
+        dom.errorPopupContent.classList.remove("scale-100", "opacity-100");
+        dom.errorPopupContent.classList.add("scale-90", "opacity-0");
+      };
+
+      dom.errorPopupOverlay.onclick = () => {
+        dom.errorPopup.classList.add("hidden");
+        dom.errorPopupContent.classList.remove("scale-100", "opacity-100");
+        dom.errorPopupContent.classList.add("scale-90", "opacity-0");
+      };
+    }
+
+    dom.createBtn.onclick = handleCreateNote;
+
+    // 上传按钮点击事件
+    dom.uploadBtn.onclick = () => {
+      if (dom.fileInput) {
+        dom.fileInput.click();
+      } else {
+        showErrorPopup("文件上传控件未找到");
+      }
+    };
+
+    if (dom.expOptions) {
+      const defaultBtn = dom.expOptions.querySelector('[data-value="1hour"]');
+      if (defaultBtn) {
+        defaultBtn.className = EXP_BTN_ACTIVE_CLASS;
+      }
+    }
   }
 </script>
