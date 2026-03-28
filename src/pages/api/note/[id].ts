@@ -3,24 +3,35 @@ import { localKv } from '../../../utils/local-kv';
 
 export const GET: APIRoute = async ({ params, env }) => {
     const noteId = params.id;
-    const kv = (env && env.NOTES_KV) ? env.NOTES_KV as KVNamespace : localKv;
+    // 获取 KV 实例
+    const kv = (env && env.NOTES_KV) ? (env.NOTES_KV as KVNamespace) : localKv;
     const noteJson = await kv.get(`note:${noteId}`);
 
     if (!noteJson) {
-        return new Response(JSON.stringify({ error: 'Note expired or not found' }), { status: 404 });
+        return new Response(JSON.stringify({ error: '笔记已过期或不存在' }), { 
+            status: 404,
+            headers: { 'Content-Type': 'application/json' }
+        });
     }
 
-    const data = JSON.parse(noteJson);
-
-    if (data.deleteAfterReading) {
-        await kv.delete(`note:${noteId}`);
-    }
-
-    return new Response(noteJson, { status: 200 });
+    return new Response(noteJson, { 
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+    });
 };
 
 export const DELETE: APIRoute = async ({ params, env }) => {
-    const kv = (env && env.NOTES_KV) ? env.NOTES_KV as KVNamespace : localKv;
-    await kv.delete(`note:${params.id}`);
-    return new Response(JSON.stringify({ message: 'Deleted' }), { status: 200 });
+    const noteId = params.id;
+    const kv = (env && env.NOTES_KV) ? (env.NOTES_KV as KVNamespace) : localKv;
+    
+    // 执行物理删除
+    await kv.delete(`note:${noteId}`);
+    
+    return new Response(JSON.stringify({ 
+        message: '笔记已成功销毁',
+        id: noteId 
+    }), { 
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+    });
 };

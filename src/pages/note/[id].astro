@@ -6,9 +6,7 @@ const { id } = Astro.params;
 
 <Layout title="查看笔记 - Transcrypt">
   <main class="flex flex-col items-center justify-center min-h-screen p-4 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
-    <div
-      class="glass-effect border border-white/10 p-6 sm:p-8 rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.1)] w-full max-w-3xl text-center"
-    >
+    <div class="glass-effect border border-white/10 p-6 sm:p-8 rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.1)] w-full max-w-3xl text-center">
       <h1 class="text-3xl font-semibold mb-8 bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-400 tracking-tight">
         笔记内容
       </h1>
@@ -16,11 +14,26 @@ const { id } = Astro.params;
       <div id="status-area">
         <div class="flex flex-col items-center">
           <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mb-4"></div>
-          <p class="text-gray-500 dark:text-gray-400 font-medium">正在安全解密中...</p>
+          <p class="text-gray-500 dark:text-gray-400 font-medium">正在安全连接中...</p>
         </div>
       </div>
 
-      <!-- 解锁区域 -->
+      <div id="burn-confirm-area" class="hidden mt-4 animate-fade-in">
+        <div class="glass-card border border-amber-200/40 p-8 rounded-3xl bg-amber-50/20">
+          <div class="text-amber-500 mb-4">
+            <svg class="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+            </svg>
+          </div>
+          <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-2">这是一份阅后即焚笔记</h2>
+          <p class="text-sm text-gray-600 dark:text-gray-400 mb-6 leading-relaxed">
+            点击下方按钮将开始解密并展示内容。<br/>
+            <span class="text-red-500 font-semibold text-xs">注意：开启后，该笔记将从服务器永久删除。</span>
+          </p>
+          <button id="start-burn-btn" class="w-full py-4 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-2xl font-semibold hover:shadow-lg transition-all active:scale-95">立即解密并销毁</button>
+        </div>
+      </div>
+
       <div id="unlock-area" class="hidden mt-4 animate-fade-in">
         <div class="glass-card border border-blue-100/40 p-6 rounded-3xl bg-blue-50/20">
           <div class="text-blue-600 mb-4">
@@ -40,20 +53,11 @@ const { id } = Astro.params;
             </div>
           </div>
           
-          <input
-            type="password"
-            id="input-pw"
-            class="w-full px-5 py-3 glass-effect border border-white/20 rounded-2xl mb-4 focus:border-blue-400 focus:ring-2 focus:ring-blue-200/50 outline-none transition-all text-center text-lg bg-white/10"
-            placeholder="••••••••"
-          />
-          <button
-            id="unlock-btn"
-            class="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl font-semibold hover:opacity-90 shadow-lg shadow-blue-200/40 transition-all active:scale-95"
-          >解锁并查看</button>
+          <input type="password" id="input-pw" class="w-full px-5 py-3 glass-effect border border-white/20 rounded-2xl mb-4 focus:border-blue-400 focus:ring-2 focus:ring-blue-200/50 outline-none transition-all text-center text-lg bg-white/10" placeholder="••••••••" />
+          <button id="unlock-btn" class="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl font-semibold hover:opacity-90 shadow-lg shadow-blue-200/40 transition-all active:scale-95">解锁并查看</button>
         </div>
       </div>
 
-      <!-- 内容区域 -->
       <div id="content-area" class="hidden text-left mt-4 animate-fade-in">
         <div id="burn-warning" class="hidden glass-card border-l-4 border-amber-500 p-4 mb-6 rounded-r-2xl shadow-sm bg-amber-50/20">
           <div class="flex items-center">
@@ -61,7 +65,7 @@ const { id } = Astro.params;
               <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
             </svg>
             <div class="ml-3">
-              <p class="text-sm text-amber-800 dark:text-amber-300 font-semibold">⚠️ 注意：此笔记为“阅后即焚”模式</p>
+              <p class="text-sm text-amber-800 dark:text-amber-300 font-semibold">注意：此笔记为“阅后即焚”模式</p>
               <p class="text-xs text-amber-700 dark:text-amber-400 mt-1">内容已从服务器删除。关闭或刷新此页面后，您将无法再次查看。</p>
             </div>
           </div>
@@ -113,15 +117,12 @@ const { id } = Astro.params;
   const showPasswordError = () => {
     const errorEl = document.getElementById('password-error');
     const inputEl = document.getElementById('input-pw');
-    
     errorEl.classList.add('show-active');
     inputEl.classList.add('error-state'); 
-    
     setTimeout(() => {
       errorEl.classList.remove('show-active');
       inputEl.classList.remove('error-state');
     }, 3000);
-    
     inputEl.focus();
     inputEl.value = '';
   };
@@ -131,36 +132,34 @@ const { id } = Astro.params;
     const titleEl = document.getElementById('alert-title');
     const messageEl = document.getElementById('alert-message');
     const closeBtn = document.getElementById('alert-close');
-    
     titleEl.textContent = title;
     messageEl.textContent = message;
-    
     alertEl.classList.remove('hidden');
-    requestAnimationFrame(() => {
-      alertEl.classList.add('alert-active');
-    });
-    
+    requestAnimationFrame(() => alertEl.classList.add('alert-active'));
     const closeAlert = () => {
       alertEl.classList.remove('alert-active');
       setTimeout(() => alertEl.classList.add('hidden'), 300);
     };
-
     closeBtn.onclick = closeAlert;
     alertEl.onclick = (e) => { if (e.target === alertEl) closeAlert(); };
   };
 
   async function init() {
-    const statusArea = document.getElementById("status-area");
-    const unlockArea = document.getElementById("unlock-area");
-    const contentArea = document.getElementById("content-area");
-    const burnWarning = document.getElementById("burn-warning");
-    const noteText = document.getElementById("note-text");
-    const fileList = document.getElementById("file-list");
-    const fileContainer = document.getElementById("file-list-container");
-    const noteDate = document.getElementById("note-date");
-
     const noteId = window.location.pathname.split("/").pop();
     const hashKey = window.location.hash.substring(1);
+    const dom = {
+      statusArea: document.getElementById("status-area"),
+      burnConfirmArea: document.getElementById("burn-confirm-area"),
+      unlockArea: document.getElementById("unlock-area"),
+      contentArea: document.getElementById("content-area"),
+      burnWarning: document.getElementById("burn-warning"),
+      noteText: document.getElementById("note-text"),
+      fileList: document.getElementById("file-list"),
+      fileContainer: document.getElementById("file-list-container"),
+      noteDate: document.getElementById("note-date"),
+      startBurnBtn: document.getElementById("start-burn-btn"),
+      unlockBtn: document.getElementById("unlock-btn")
+    };
 
     try {
       const res = await fetch(`/api/note/${noteId}`);
@@ -176,116 +175,94 @@ const { id } = Astro.params;
           const mKey = await window.crypto.subtle.importKey("raw", masterKeyBuf, "AES-GCM", true, ["decrypt"]);
           const decContent = await window.crypto.subtle.decrypt({ name: "AES-GCM", iv }, mKey, b642buf(note.content));
           
-          noteText.innerText = new TextDecoder().decode(decContent);
+          dom.noteText.innerText = new TextDecoder().decode(decContent);
 
-          if (note.files && note.files.length > 0) {
-            fileContainer.classList.remove("hidden");
-            fileList.innerHTML = "";
+          if (note.files?.length > 0) {
+            dom.fileContainer.classList.remove("hidden");
+            dom.fileList.innerHTML = "";
             for (const f of note.files) {
               const decF = await window.crypto.subtle.decrypt({ name: "AES-GCM", iv }, mKey, b642buf(f.data));
-              const blob = new Blob([decF], { type: f.type });
-              const url = URL.createObjectURL(blob);
+              const url = URL.createObjectURL(new Blob([decF], { type: f.type }));
               const li = document.createElement("li");
               li.innerHTML = `<a href="${url}" download="${f.name}" class="flex items-center justify-between p-3 glass-effect border border-white/10 rounded-2xl hover:border-blue-300 hover:shadow-sm transition-all group bg-white/10"><span class="text-gray-700 dark:text-gray-300 group-hover:text-blue-600 truncate mr-4">${f.name}</span><span class="text-xs text-blue-500 font-semibold shrink-0">保存</span></a>`;
-              fileList.appendChild(li);
+              dom.fileList.appendChild(li);
             }
           }
 
-          if (note.createdAt) noteDate.innerText = new Date(note.createdAt).toLocaleString();
-          if (note.deleteAfterReading) burnWarning.classList.remove("hidden");
+          if (note.createdAt) dom.noteDate.innerText = new Date(note.createdAt).toLocaleString();
+          
+          // 逻辑：成功解密后触发销毁
+          if (note.deleteAfterReading) {
+            fetch(`/api/note/${noteId}`, { method: 'DELETE' }).catch(console.error);
+            dom.burnWarning.classList.remove("hidden");
+          }
 
-          statusArea.classList.add("hidden");
-          unlockArea.classList.add("hidden");
-          contentArea.classList.remove("hidden");
+          dom.statusArea.classList.add("hidden");
+          dom.burnConfirmArea.classList.add("hidden");
+          dom.unlockArea.classList.add("hidden");
+          dom.contentArea.classList.remove("hidden");
         } catch (e) {
-          throw new Error("解密失败：访问密钥无效");
+          showPasswordError(); // 密码错误时触发抖动
         }
       };
 
-      if (note.hasPassword) {
-        statusArea.classList.add("hidden");
-        unlockArea.classList.remove("hidden");
-        document.getElementById("unlock-btn").onclick = async () => {
-          const pw = document.getElementById("input-pw").value;
-          if (!pw) return;
-          try {
-            const iv = b642buf(note.iv);
-            const encoder = new TextEncoder();
-            const baseKey = await window.crypto.subtle.importKey("raw", encoder.encode(pw), "PBKDF2", false, ["deriveKey"]);
-            const derivedKey = await window.crypto.subtle.deriveKey({ name: "PBKDF2", salt: iv, iterations: 100000, hash: "SHA-256" }, baseKey, { name: "AES-GCM", length: 256 }, true, ["decrypt"]);
-            const mkBuf = await window.crypto.subtle.decrypt({ name: "AES-GCM", iv }, derivedKey, b642buf(note.key));
-            await decryptAndShow(mkBuf);
-          } catch (e) {
-            showPasswordError();
+      // 逻辑分发
+      if (note.deleteAfterReading) {
+        dom.statusArea.classList.add("hidden");
+        dom.burnConfirmArea.classList.remove("hidden");
+        dom.startBurnBtn.onclick = async () => {
+          if (note.hasPassword) {
+            dom.burnConfirmArea.classList.add("hidden");
+            dom.unlockArea.classList.remove("hidden");
+          } else {
+            if (!hashKey) { showCustomAlert('错误', '缺少解密凭证'); return; }
+            await decryptAndShow(b642buf(hashKey));
           }
         };
+      } else if (note.hasPassword) {
+        dom.statusArea.classList.add("hidden");
+        dom.unlockArea.classList.remove("hidden");
       } else {
-        if (!hashKey) throw new Error("缺少解密凭证 (Hash)");
+        if (!hashKey) { showCustomAlert('错误', '缺少解密凭证'); return; }
         await decryptAndShow(b642buf(hashKey));
       }
+
+      dom.unlockBtn.onclick = async () => {
+        const pw = document.getElementById("input-pw").value;
+        if (!pw) return;
+        try {
+          const iv = b642buf(note.iv);
+          const encoder = new TextEncoder();
+          const baseKey = await window.crypto.subtle.importKey("raw", encoder.encode(pw), "PBKDF2", false, ["deriveKey"]);
+          const derivedKey = await window.crypto.subtle.deriveKey({ name: "PBKDF2", salt: iv, iterations: 100000, hash: "SHA-256" }, baseKey, { name: "AES-GCM", length: 256 }, true, ["decrypt"]);
+          const mkBuf = await window.crypto.subtle.decrypt({ name: "AES-GCM", iv }, derivedKey, b642buf(note.key));
+          await decryptAndShow(mkBuf);
+        } catch (e) {
+          showPasswordError();
+        }
+      };
+
     } catch (err) {
-      statusArea.innerHTML = `<div class="glass-card border border-red-500/20 p-6 rounded-3xl bg-red-500/10 text-red-600"><p class="font-bold">加载失败</p><p class="text-sm mt-1 opacity-80">${err.message}</p></div>`;
+      dom.statusArea.innerHTML = `<div class="glass-card border border-red-500/20 p-6 rounded-3xl bg-red-500/10 text-red-600"><p class="font-bold">加载失败</p><p class="text-sm mt-1 opacity-80">${err.message}</p></div>`;
     }
   }
   init();
 </script>
 
 <style>
-  .glass-effect {
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-    background-color: rgba(255, 255, 255, 0.85);
-  }
+  .glass-effect { backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); background-color: rgba(255, 255, 255, 0.85); }
   .dark .glass-effect { background-color: rgba(17, 24, 39, 0.85); }
-  
-  .glass-card {
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    background-color: rgba(255, 255, 255, 0.7);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-  }
+  .glass-card { backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); background-color: rgba(255, 255, 255, 0.7); border: 1px solid rgba(255, 255, 255, 0.1); }
   .dark .glass-card { background-color: rgba(17, 24, 39, 0.7); }
 
-  .password-error-container {
-    max-height: 0;
-    opacity: 0;
-    transform: translateY(-8px);
-    overflow: hidden;
-    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    margin-bottom: 0;
-    background-color: rgba(239, 68, 68, 0.05);
-    border-radius: 0.75rem;
-  }
-  .password-error-container.show-active {
-    max-height: 50px;
-    opacity: 1;
-    transform: translateY(0);
-    margin-bottom: 1rem;
-    padding: 0.75rem;
-    border: 1px solid rgba(239, 68, 68, 0.1);
-  }
+  .password-error-container { max-height: 0; opacity: 0; transform: translateY(-8px); overflow: hidden; transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); margin-bottom: 0; background-color: rgba(239, 68, 68, 0.05); border-radius: 0.75rem; }
+  .password-error-container.show-active { max-height: 50px; opacity: 1; transform: translateY(0); margin-bottom: 1rem; padding: 0.75rem; border: 1px solid rgba(239, 68, 68, 0.1); }
 
-  .error-state {
-    border-color: rgba(239, 68, 68, 0.5) !important;
-    box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.1) !important;
-    animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
-  }
-  @keyframes shake {
-    10%, 90% { transform: translate3d(-1px, 0, 0); }
-    20%, 80% { transform: translate3d(2px, 0, 0); }
-    30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
-    40%, 60% { transform: translate3d(4px, 0, 0); }
-  }
+  .error-state { border-color: rgba(239, 68, 68, 0.5) !important; box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.1) !important; animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both; }
+  @keyframes shake { 10%, 90% { transform: translate3d(-1px, 0, 0); } 20%, 80% { transform: translate3d(2px, 0, 0); } 30%, 50%, 70% { transform: translate3d(-4px, 0, 0); } 40%, 60% { transform: translate3d(4px, 0, 0); } }
 
-  #custom-alert {
-    transition: opacity 0.3s ease;
-    opacity: 0;
-    pointer-events: none;
-  }
-  #custom-alert .glass-card {
-    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-    transform: scale(0.8) translateY(20px);
-  }
+  #custom-alert { transition: opacity 0.3s ease; opacity: 0; pointer-events: none; }
+  #custom-alert .glass-card { transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); transform: scale(0.8) translateY(20px); }
   #custom-alert.alert-active { opacity: 1; pointer-events: auto; }
   #custom-alert.alert-active .glass-card { transform: scale(1) translateY(0); }
 
