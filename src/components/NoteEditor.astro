@@ -200,6 +200,36 @@
       </label>
     </div>
 
+    <div class="flex items-center justify-between">
+      <span class="text-sm font-semibold text-gray-700 dark:text-gray-300"
+        >访问次数限制</span
+      >
+      <div class="flex items-center gap-2">
+        <input 
+          type="number" 
+          id="max-access" 
+          placeholder="0" 
+          min="0"
+          class="w-16 glass-input border border-gray-200 dark:border-gray-700 rounded-lg py-1 px-2 text-center text-sm font-bold text-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-400"
+        />
+        <span class="text-[10px] text-gray-400 font-bold uppercase">Times</span>
+      </div>
+    </div>
+
+    <div class="flex items-center justify-between">
+      <div class="flex flex-col">
+        <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">防爆破模式</span>
+        <span class="text-[9px] text-gray-400 uppercase tracking-tighter">High-Cost Decryption</span>
+      </div>
+      <label class="relative inline-flex items-center cursor-pointer">
+        <input type="checkbox" id="anti-brute-force" class="sr-only peer" />
+        <div
+          class="w-12 h-6 bg-gray-200 dark:bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300/50 rounded-full peer peer-checked:after:translate-x-[18px] peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:border-gray-300 after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-500"
+        >
+        </div>
+      </label>
+    </div>
+
     <!-- 附件上传 -->
     <div>
       <button
@@ -281,6 +311,7 @@
   </aside>
 </main>
 
+<!-- Success Modal & Error Popup Code Remains Unchanged... -->
 <div
   id="success-modal"
   class="fixed inset-0 bg-black/50 glass-overlay flex items-center justify-center p-4 z-50 hidden transition-opacity duration-300"

@@ -77,6 +77,9 @@ import NoteEditor from "../components/NoteEditor.astro";
       errorPopupOverlay: document.getElementById("error-popup-overlay"),
       errorPopupCloseBtn: document.getElementById("error-popup-close-btn"),
       errorPopupMessage: document.getElementById("error-popup-message"),
+
+      maxAccess: document.getElementById("max-access"),
+      antiBruteForce: document.getElementById("anti-brute-force"),
     };
 
     const buf2b64 = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf)));
@@ -105,6 +108,8 @@ import NoteEditor from "../components/NoteEditor.astro";
     async function handleCreateNote() {
       const content = dom.noteContent.value.trim();
       const password = dom.notePassword.value;
+      const maxAccessVal = dom.maxAccess?.value ? parseInt(dom.maxAccess.value) : null;
+      const antiBruteForceEnabled = dom.antiBruteForce?.checked || false;
 
       if (!content && uploadedFiles.length === 0)
         return showErrorPopup("内容或附件不能为空");
@@ -118,10 +123,7 @@ import NoteEditor from "../components/NoteEditor.astro";
           true,
           ["encrypt", "decrypt"],
         );
-        const rawMasterKey = await window.crypto.subtle.exportKey(
-          "raw",
-          masterKey,
-        );
+        const rawMasterKey = await window.crypto.subtle.exportKey("raw", masterKey);
 
         const iv = window.crypto.getRandomValues(new Uint8Array(12));
         const encoder = new TextEncoder();
@@ -135,17 +137,8 @@ import NoteEditor from "../components/NoteEditor.astro";
         const encFiles = await Promise.all(
           uploadedFiles.map(async (file) => {
             const buf = await file.arrayBuffer();
-            const encF = await window.crypto.subtle.encrypt(
-              { name: "AES-GCM", iv },
-              masterKey,
-              buf,
-            );
-            return {
-              name: file.name,
-              type: file.type,
-              size: file.size,
-              data: buf2b64(encF),
-            };
+            const encF = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv }, masterKey, buf);
+            return { name: file.name, type: file.type, size: file.size, data: buf2b64(encF) };
           }),
         );
 
@@ -154,25 +147,17 @@ import NoteEditor from "../components/NoteEditor.astro";
 
         if (password) {
           const pwBuf = encoder.encode(password);
-          const baseKey = await window.crypto.subtle.importKey(
-            "raw",
-            pwBuf,
-            "PBKDF2",
-            false,
-            ["deriveKey"],
-          );
+          const baseKey = await window.crypto.subtle.importKey("raw", pwBuf, "PBKDF2", false, ["deriveKey"]);
+          // 防爆破模式：使用更高的迭代次数 (60万次)
+          const iterations = antiBruteForceEnabled ? 600000 : 100000;
           const derivedKey = await window.crypto.subtle.deriveKey(
-            { name: "PBKDF2", salt: iv, iterations: 100000, hash: "SHA-256" },
+            { name: "PBKDF2", salt: iv, iterations: iterations, hash: "SHA-256" },
             baseKey,
             { name: "AES-GCM", length: 256 },
             true,
             ["encrypt"],
           );
-          const encMasterKey = await window.crypto.subtle.encrypt(
-            { name: "AES-GCM", iv },
-            derivedKey,
-            rawMasterKey,
-          );
+          const encMasterKey = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv }, derivedKey, rawMasterKey);
           storedKey = buf2b64(encMasterKey);
         } else {
           storedKey = masterKeyB64;
@@ -185,6 +170,8 @@ import NoteEditor from "../components/NoteEditor.astro";
           key: storedKey,
           iv: buf2b64(iv),
           hasPassword: !!password,
+          antiBruteForce: antiBruteForceEnabled, 
+          maxAccess: maxAccessVal,               
           files: encFiles,
           expiration: dom.neverExpires.checked ? null : getTTLSeconds(),
           deleteAfterReading: dom.burnAfterRead.checked,
@@ -198,7 +185,6 @@ import NoteEditor from "../components/NoteEditor.astro";
         });
 
         if (!response.ok) throw new Error("服务器保存失败");
-
         const finalLink = `${window.location.origin}/note/${noteId}#${masterKeyB64}`;
         showSuccess(finalLink);
       } catch (err) {
@@ -347,10 +333,24 @@ import NoteEditor from "../components/NoteEditor.astro";
     };
 
     dom.neverExpires.onchange = () => {
-      if (dom.neverExpires.checked) dom.burnAfterRead.checked = false;
+      if (dom.neverExpires.checked) {
+        dom.burnAfterRead.checked = false;
+        dom.maxAccess.disabled = false;
+        dom.maxAccess.parentElement.classList.remove("opacity-50");
+      }
     };
+
+    // 阅后即焚联动逻辑
     dom.burnAfterRead.onchange = () => {
-      if (dom.burnAfterRead.checked) dom.neverExpires.checked = false;
+      if (dom.burnAfterRead.checked) {
+        dom.neverExpires.checked = false;
+        dom.maxAccess.value = "1";
+        dom.maxAccess.disabled = true;
+        dom.maxAccess.parentElement.classList.add("opacity-50", "transition-opacity");
+      } else {
+        dom.maxAccess.disabled = false;
+        dom.maxAccess.parentElement.classList.remove("opacity-50");
+      }
     };
 
     dom.shareEmailBtn.onclick = () => {

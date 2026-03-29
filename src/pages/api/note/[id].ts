@@ -3,7 +3,6 @@ import { localKv } from '../../../utils/local-kv';
 
 export const GET: APIRoute = async ({ params, env }) => {
     const noteId = params.id;
-    // 获取 KV 实例
     const kv = (env && env.NOTES_KV) ? (env.NOTES_KV as KVNamespace) : localKv;
     const noteJson = await kv.get(`note:${noteId}`);
 
@@ -14,7 +13,21 @@ export const GET: APIRoute = async ({ params, env }) => {
         });
     }
 
-    return new Response(noteJson, { 
+    let note = JSON.parse(noteJson);
+
+    // 逻辑：处理访问次数限制
+    if (note.maxAccess !== null && note.maxAccess !== undefined) {
+        note.maxAccess -= 1;
+        if (note.maxAccess <= 0) {
+            // 达到次数限制，立即删除
+            await kv.delete(`note:${noteId}`);
+        } else {
+            // 更新剩余次数
+            await kv.put(`note:${noteId}`, JSON.stringify(note));
+        }
+    }
+
+    return new Response(JSON.stringify(note), { 
         status: 200,
         headers: { 'Content-Type': 'application/json' }
     });
@@ -23,8 +36,6 @@ export const GET: APIRoute = async ({ params, env }) => {
 export const DELETE: APIRoute = async ({ params, env }) => {
     const noteId = params.id;
     const kv = (env && env.NOTES_KV) ? (env.NOTES_KV as KVNamespace) : localKv;
-    
-    // 执行物理删除
     await kv.delete(`note:${noteId}`);
     
     return new Response(JSON.stringify({ 
