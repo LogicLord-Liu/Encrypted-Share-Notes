@@ -4,6 +4,7 @@ import Layout from "../layouts/Layout.astro";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import NoteEditor from "../components/NoteEditor.astro";
+import { FILE_ICONS_DATA } from "../data/fileIcons.js";
 ---
 
 <Layout title="安全分享 - Transcrypt">
@@ -12,7 +13,7 @@ import NoteEditor from "../components/NoteEditor.astro";
   <Footer client:load />
 </Layout>
 
-<script is:inline>
+<script is:inline define:vars={{ FILE_ICONS_DATA }}>
   /**
    * Transcrypt 核心前端加密脚本
    * 采用 Web Crypto API (AES-GCM + PBKDF2)
@@ -262,48 +263,119 @@ import NoteEditor from "../components/NoteEditor.astro";
       renderFileList();
     };
 
+    function getFileIconSvg(fileName) {
+      const ext = fileName.split(".").pop().toLowerCase();
+      const icons = FILE_ICONS_DATA;
+
+      const map = {
+        // 文档类
+        txt: icons.documents.text,
+        log: icons.documents.text,
+        pdf: icons.documents.pdf,
+        doc: icons.documents.word,
+        docx: icons.documents.word,
+        ppt: icons.documents.presentation,
+        pptx: icons.documents.presentation,
+        xls: icons.documents.spreadsheet,
+        xlsx: icons.documents.spreadsheet,
+        csv: icons.documents.csv,
+        md: icons.documents.markdown,
+
+        // 多媒体
+        jpg: icons.media.image,
+        jpeg: icons.media.image,
+        png: icons.media.image,
+        gif: icons.media.image,
+        webp: icons.media.image,
+        svg: icons.media.svg,
+        mp4: icons.media.video,
+        mkv: icons.media.video,
+        mov: icons.media.video,
+        mp3: icons.media.audio,
+        wav: icons.media.audio,
+        flac: icons.media.audio,
+
+        // 压缩包
+        zip: icons.archives.zip,
+        rar: icons.archives.rar,
+        "7z": icons.archives.sevenzip,
+        tar: icons.archives.tar,
+        gz: icons.archives.tar,
+
+        // 编程与代码
+        js: icons.code.javascript,
+        ts: icons.code.typescript,
+        json: icons.code.json,
+        yaml: icons.code.json,
+        yml: icons.code.json,
+        rust: icons.code.rust,
+        rs: icons.code.rust,
+        php: icons.code.php,
+        swift: icons.code.swift,
+        sh: icons.code.shell,
+        bash: icons.code.shell,
+        py: icons.code.python,
+        java: icons.code.java,
+        go: icons.code.go,
+        sql: icons.code.sql,
+        html: icons.code.html,
+        css: icons.code.css,
+
+        // 系统文件
+        exe: icons.system.exe,
+        msi: icons.system.exe,
+        apk: icons.system.apk,
+      };
+
+      return map[ext] || icons.general.default;
+    }
+
     function renderFileList() {
-      dom.fileList.innerHTML = "";
+      const fileListDom = document.getElementById("file-list");
+      const uploadAreaDom = document.getElementById("upload-area");
+
+      if (!fileListDom || !uploadAreaDom) return;
+
+      fileListDom.innerHTML = "";
 
       if (uploadedFiles.length === 0) {
-        dom.uploadArea.classList.add("hidden");
+        uploadAreaDom.classList.add("hidden");
         return;
       }
 
       uploadedFiles.forEach((f, index) => {
         const fileItem = document.createElement("div");
+        const iconSvg = getFileIconSvg(f.name);
+        const fileSize = formatBytes(f.size);
+
         fileItem.className =
-          "flex items-center justify-between py-2 px-3 rounded-lg bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors";
+          "flex items-center justify-between py-2 px-3 rounded-xl bg-white/50 dark:bg-gray-800/40 border border-pink-50 dark:border-gray-700/30 transition-all gap-4";
+
         fileItem.innerHTML = `
-          <div class="flex items-center gap-2 overflow-hidden">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-500 dark:text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            <span class="truncate text-sm text-gray-800 dark:text-gray-200 font-medium">${f.name}</span>
+          <div class="flex items-center gap-3 overflow-hidden flex-1">
+            <div class="w-5 h-5 flex-shrink-0 text-pink-400">
+              ${iconSvg} 
+            </div>
+            <span class="truncate text-xs text-gray-600 dark:text-gray-300 font-medium">${f.name}</span>
           </div>
-          <div class="flex items-center gap-3 flex-shrink-0">
-            <span class="text-xs text-gray-500 dark:text-gray-400 min-w-[60px] text-right">${formatBytes(f.size)}</span>
-            <button 
-              class="file-remove-btn text-gray-400 hover:text-red-500 transition-colors" 
-              title="移除文件"
-            >
+          <div class="flex items-center gap-2 flex-shrink-0">
+            <span class="text-[10px] text-gray-400 dark:text-gray-500 font-mono">${fileSize}</span>
+            <button class="file-remove-btn text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400 transition-colors p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10" title="移除文件">
               <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
               </svg>
             </button>
           </div>
         `;
 
-        const removeBtn = fileItem.querySelector(".file-remove-btn");
-        removeBtn.addEventListener("click", () => {
+        fileItem.querySelector(".file-remove-btn").onclick = () => {
           uploadedFiles.splice(index, 1);
           renderFileList();
-        });
+        };
 
-        dom.fileList.appendChild(fileItem);
+        fileListDom.appendChild(fileItem);
       });
-
-      dom.uploadArea.classList.remove("hidden");
+      uploadAreaDom.classList.remove("hidden");
     }
 
     dom.notePassword.oninput = () => {
