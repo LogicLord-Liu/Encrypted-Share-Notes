@@ -16,519 +16,363 @@ import { FILE_ICONS_DATA } from "../data/fileIcons.js";
 <script is:inline define:vars={{ FILE_ICONS_DATA }}>
   /**
    * Transcrypt 核心前端加密脚本
-   * 采用 Web Crypto API (AES-GCM + PBKDF2)
+   * 结构重构版 - 修复作用域与路径解析问题
    */
   if (typeof window !== "undefined") {
-    let selectedExpiration = "1hour";
-    let uploadedFiles = [];
-    const MAX_SIZE_MB = 10;
-    const MAX_FILE_SIZE = MAX_SIZE_MB * 1024 * 1024;
-
-    const EXP_BTN_DEFAULT_CLASS =
-      "py-2.5 px-4 rounded-xl text-sm font-medium transition-all bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-blue-500/10 hover:text-blue-600";
-    const EXP_BTN_ACTIVE_CLASS =
-      "py-2.5 px-4 rounded-xl text-sm font-medium transition-all bg-blue-500/90 text-white shadow-sm";
-
-    const strengthLabels = ["非常弱", "弱", "中等", "强", "非常强"];
-    const strengthColors = [
-      "bg-red-500",
-      "bg-orange-400",
-      "bg-yellow-400",
-      "bg-green-400",
-      "bg-green-600",
-    ];
-
-    // --- DOM 引用 ---
-    const dom = {
-      noteContent: document.getElementById("note-content"),
-      notePassword: document.getElementById("note-password"),
-      createBtn: document.getElementById("create-note-button"),
-
-      neverExpires: document.getElementById("never-expires"),
-      burnAfterRead: document.getElementById("delete-after-reading"),
-      expOptions: document.getElementById("expiration-options"),
-
-      togglePwBtn: document.getElementById("toggle-password"),
-      eyeOpen: document.getElementById("eye-open"),
-      eyeClosed: document.getElementById("eye-closed"),
-      genPwBtn: document.getElementById("generate-password"),
-      pwStrengthText: document.getElementById("password-strength-text"),
-      pwStrengthFill: document.getElementById("password-strength-fill"),
-
-      uploadBtn: document.getElementById("upload-btn"),
-      fileInput: document.getElementById("file-input"),
-      uploadArea: document.getElementById("upload-area"),
-      fileList: document.getElementById("file-list"),
-      errorMsg: document.getElementById("error-message"),
-      errorText: document.getElementById("error-text"),
-
-      successModal: document.getElementById("success-modal"),
-      successContent: document.getElementById("success-modal-content"),
-      linkDisplay: document.getElementById("encrypted-link-display"),
-      copyBtn: document.getElementById("copy-link-button"),
-      copyIcon: document.getElementById("copy-icon"),
-      checkIcon: document.getElementById("check-icon"),
-      copyFeedback: document.getElementById("copy-feedback"),
-      qrcodeCanvas: document.getElementById("qrcode-canvas"),
-      closeModalBtn: document.getElementById("close-modal-button"),
-      shareEmailBtn: document.getElementById("share-email-button"),
-
-      errorPopup: document.getElementById("error-popup"),
-      errorPopupContent: document.getElementById("error-popup-content"),
-      errorPopupOverlay: document.getElementById("error-popup-overlay"),
-      errorPopupCloseBtn: document.getElementById("error-popup-close-btn"),
-      errorPopupMessage: document.getElementById("error-popup-message"),
-
-      maxAccess: document.getElementById("max-access"),
-      antiBruteForce: document.getElementById("anti-brute-force"),
+    // ==========================================
+    // 1. 配置与状态管理 (Config & State)
+    // ==========================================
+    const CONFIG = {
+      MAX_SIZE_MB: 10,
+      get MAX_FILE_SIZE() {
+        return this.MAX_SIZE_MB * 1024 * 1024;
+      },
+      EXP_BTN_DEFAULT_CLASS:
+        "py-2.5 px-4 rounded-xl text-sm font-medium transition-all bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-blue-500/10 hover:text-blue-600",
+      EXP_BTN_ACTIVE_CLASS:
+        "py-2.5 px-4 rounded-xl text-sm font-medium transition-all bg-blue-500/90 text-white shadow-sm",
+      STRENGTH_LABELS: ["非常弱", "弱", "中等", "强", "非常强"],
+      STRENGTH_COLORS: [
+        "bg-red-500",
+        "bg-orange-400",
+        "bg-yellow-400",
+        "bg-green-400",
+        "bg-green-600",
+      ],
     };
 
-    const buf2b64 = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf)));
-    const formatBytes = (bytes) => {
-      if (bytes === 0) return "0 Bytes";
-      const i = Math.floor(Math.log(bytes) / Math.log(1024));
-      return (
-        parseFloat((bytes / Math.pow(1024, i)).toFixed(2)) +
-        " " +
-        ["Bytes", "KB", "MB", "GB"][i]
-      );
+    // 修复：映射表存储路径字符串，由 Utils 解析
+    const EXTENSION_MAP = Object.freeze({
+      txt: "documents.text", log: "documents.text", pdf: "documents.pdf",
+      doc: "documents.word", docx: "documents.word",
+      ppt: "documents.presentation", pptx: "documents.presentation",
+      xls: "documents.spreadsheet", xlsx: "documents.spreadsheet",
+      csv: "documents.csv", md: "documents.markdown", xml: "documents.xml",
+      jpg: "media.image", jpeg: "media.image", png: "media.image", webp: "media.image",
+      gif: "media.gif", svg: "media.svg", mp4: "media.video", mkv: "media.video",
+      mov: "media.video", mp3: "media.audio", wav: "media.audio", flac: "media.audio",
+      zip: "archives.zip", rar: "archives.rar", "7z": "archives.sevenzip",
+      tar: "archives.tar", gz: "archives.tar",
+      js: "code.javascript", ts: "code.typescript", json: "code.json",
+      yaml: "code.json", yml: "code.json", rs: "code.rust", rust: "code.rust",
+      php: "code.php", swift: "code.swift", sh: "code.shell", bash: "code.shell",
+      py: "code.python", java: "code.java", go: "code.go", sql: "code.sql",
+      html: "code.html", css: "code.css", jsx: "code.jsx", tsx: "code.jsx",
+    });
+
+    const SPECIAL_FILE_MAP = Object.freeze({
+      "dockerfile": "code.shell",
+      "gitignore": "documents.text",
+      "package.json": "code.json"
+    });
+
+    const STATE = {
+      selectedExpiration: "1hour",
+      uploadedFiles: [],
     };
 
-    const showErrorPopup = (message = "操作失败，请稍后重试") => {
-      if (!dom.errorPopup) return alert(message);
-
-      dom.errorPopupMessage.textContent = message;
-      dom.errorPopup.classList.remove("hidden");
-
-      setTimeout(() => {
-        dom.errorPopupContent.classList.remove("scale-90", "opacity-0");
-        dom.errorPopupContent.classList.add("scale-100", "opacity-100");
-      }, 10);
+    // ==========================================
+    // 2. DOM 元素管理 (DOM Elements)
+    // ==========================================
+    const DOM = {
+      init() {
+        this.noteContent = document.getElementById("note-content");
+        this.notePassword = document.getElementById("note-password");
+        this.createBtn = document.getElementById("create-note-button");
+        this.neverExpires = document.getElementById("never-expires");
+        this.burnAfterRead = document.getElementById("delete-after-reading");
+        this.expOptions = document.getElementById("expiration-options");
+        this.togglePwBtn = document.getElementById("toggle-password");
+        this.eyeOpen = document.getElementById("eye-open");
+        this.eyeClosed = document.getElementById("eye-closed");
+        this.genPwBtn = document.getElementById("generate-password");
+        this.pwStrengthText = document.getElementById("password-strength-text");
+        this.pwStrengthFill = document.getElementById("password-strength-fill");
+        this.uploadBtn = document.getElementById("upload-btn");
+        this.fileInput = document.getElementById("file-input");
+        this.uploadArea = document.getElementById("upload-area");
+        this.fileList = document.getElementById("file-list");
+        this.successModal = document.getElementById("success-modal");
+        this.successContent = document.getElementById("success-modal-content");
+        this.linkDisplay = document.getElementById("encrypted-link-display");
+        this.copyBtn = document.getElementById("copy-link-button");
+        this.copyIcon = document.getElementById("copy-icon");
+        this.checkIcon = document.getElementById("check-icon");
+        this.copyFeedback = document.getElementById("copy-feedback");
+        this.qrcodeCanvas = document.getElementById("qrcode-canvas");
+        this.closeModalBtn = document.getElementById("close-modal-button");
+        this.shareEmailBtn = document.getElementById("share-email-button");
+        this.errorPopup = document.getElementById("error-popup");
+        this.errorPopupContent = document.getElementById("error-popup-content");
+        this.errorPopupOverlay = document.getElementById("error-popup-overlay");
+        this.errorPopupCloseBtn = document.getElementById("error-popup-close-btn");
+        this.errorPopupMessage = document.getElementById("error-popup-message");
+        this.maxAccess = document.getElementById("max-access");
+        this.antiBruteForce = document.getElementById("anti-brute-force");
+      },
     };
 
-    async function handleCreateNote() {
-      const content = dom.noteContent.value.trim();
-      const password = dom.notePassword.value;
-      const maxAccessVal = dom.maxAccess?.value
-        ? parseInt(dom.maxAccess.value)
-        : null;
-      const antiBruteForceEnabled = dom.antiBruteForce?.checked || false;
+    // ==========================================
+    // 3. 工具函数 (Utilities)
+    // ==========================================
+    const Utils = {
+      buf2b64: (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))),
 
-      if (!content && uploadedFiles.length === 0)
-        return showErrorPopup("内容或附件不能为空");
+      formatBytes: (bytes) => {
+        if (bytes === 0) return "0 Bytes";
+        const i = Math.floor(Math.log(bytes) / Math.log(1024));
+        return parseFloat((bytes / Math.pow(1024, i)).toFixed(2)) + " " + ["Bytes", "KB", "MB", "GB"][i];
+      },
 
-      dom.createBtn.disabled = true;
-      dom.createBtn.innerText = "加密中...";
+      getTTLSeconds: () => {
+        const map = { "1hour": 3600, "1day": 86400, "1week": 604800, "1month": 2592000 };
+        return map[STATE.selectedExpiration] || 3600;
+      },
 
-      try {
-        const masterKey = await window.crypto.subtle.generateKey(
-          { name: "AES-GCM", length: 256 },
-          true,
-          ["encrypt", "decrypt"],
-        );
-        const rawMasterKey = await window.crypto.subtle.exportKey(
-          "raw",
-          masterKey,
-        );
+      getNestedValue: (obj, path) => {
+        return path.split(".").reduce((acc, key) => (acc && acc[key] ? acc[key] : null), obj);
+      },
 
-        const iv = window.crypto.getRandomValues(new Uint8Array(12));
-        const encoder = new TextEncoder();
+      getFileIconSvg: (fileName) => {
+        if (!fileName || typeof fileName !== "string") return FILE_ICONS_DATA.general.default;
+        const lowerName = fileName.toLowerCase();
 
-        const encContent = await window.crypto.subtle.encrypt(
-          { name: "AES-GCM", iv },
-          masterKey,
-          encoder.encode(content),
-        );
+        // 1. 特殊文件名匹配
+        if (SPECIAL_FILE_MAP[lowerName]) {
+          return Utils.getNestedValue(FILE_ICONS_DATA, SPECIAL_FILE_MAP[lowerName]) || FILE_ICONS_DATA.general.default;
+        }
+        // 2. 复合后缀
+        if (lowerName.endsWith(".tar.gz")) return FILE_ICONS_DATA.archives.tar;
+        
+        // 3. 标准后缀匹配
+        const ext = lowerName.split(".").pop();
+        const iconPath = EXTENSION_MAP[ext];
+        return (iconPath && Utils.getNestedValue(FILE_ICONS_DATA, iconPath)) || FILE_ICONS_DATA.general.default;
+      }
+    };
 
-        const encFiles = await Promise.all(
-          uploadedFiles.map(async (file) => {
-            const buf = await file.arrayBuffer();
-            const encF = await window.crypto.subtle.encrypt(
-              { name: "AES-GCM", iv },
-              masterKey,
-              buf,
-            );
-            return {
-              name: file.name,
-              type: file.type,
-              size: file.size,
-              data: buf2b64(encF),
-            };
-          }),
-        );
+    // ==========================================
+    // 4. UI 交互层 (UI Interactions)
+    // ==========================================
+    const UI = {
+      showErrorPopup: (message = "操作失败") => {
+        if (!DOM.errorPopup) return alert(message);
+        DOM.errorPopupMessage.textContent = message;
+        DOM.errorPopup.classList.remove("hidden");
+        setTimeout(() => {
+          DOM.errorPopupContent.classList.replace("scale-90", "scale-100");
+          DOM.errorPopupContent.classList.replace("opacity-0", "opacity-100");
+        }, 10);
+      },
 
-        let storedKey;
-        const masterKeyB64 = buf2b64(rawMasterKey);
+      hideErrorPopup: () => {
+        DOM.errorPopup.classList.add("hidden");
+        DOM.errorPopupContent.classList.replace("scale-100", "scale-90");
+        DOM.errorPopupContent.classList.replace("opacity-100", "opacity-0");
+      },
 
-        if (password) {
-          const pwBuf = encoder.encode(password);
-          const baseKey = await window.crypto.subtle.importKey(
-            "raw",
-            pwBuf,
-            "PBKDF2",
-            false,
-            ["deriveKey"],
-          );
-          // 防爆破模式：使用更高的迭代次数 (60万次)
-          const iterations = antiBruteForceEnabled ? 600000 : 100000;
-          const derivedKey = await window.crypto.subtle.deriveKey(
-            {
-              name: "PBKDF2",
-              salt: iv,
-              iterations: iterations,
-              hash: "SHA-256",
-            },
-            baseKey,
-            { name: "AES-GCM", length: 256 },
-            true,
-            ["encrypt"],
-          );
-          const encMasterKey = await window.crypto.subtle.encrypt(
-            { name: "AES-GCM", iv },
-            derivedKey,
-            rawMasterKey,
-          );
-          storedKey = buf2b64(encMasterKey);
-        } else {
-          storedKey = masterKeyB64;
+      showSuccess: (link) => {
+        DOM.linkDisplay.value = link;
+        DOM.successModal.classList.remove("hidden");
+        setTimeout(() => {
+          DOM.successContent.classList.replace("scale-95", "scale-100");
+          DOM.successContent.classList.replace("opacity-0", "opacity-100");
+        }, 10);
+        if (window.QRCodeGenerator) {
+          window.QRCodeGenerator.toCanvas(DOM.qrcodeCanvas, link, { width: 128 });
+        }
+      },
+
+      renderFileList: () => {
+        if (!DOM.fileList || !DOM.uploadArea) return;
+        DOM.fileList.innerHTML = "";
+
+        if (STATE.uploadedFiles.length === 0) {
+          DOM.uploadArea.classList.add("hidden");
+          return;
         }
 
-        const noteId = crypto.randomUUID();
-        const payload = {
-          id: noteId,
-          content: buf2b64(encContent),
-          key: storedKey,
-          iv: buf2b64(iv),
-          hasPassword: !!password,
-          antiBruteForce: antiBruteForceEnabled,
-          maxAccess: maxAccessVal,
-          files: encFiles,
-          expiration: dom.neverExpires.checked ? null : getTTLSeconds(),
-          deleteAfterReading: dom.burnAfterRead.checked,
-          createdAt: new Date().toISOString(),
-        };
-
-        const response = await fetch("/api/note", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-
-        if (!response.ok) throw new Error("服务器保存失败");
-        const finalLink = `${window.location.origin}/note/${noteId}#${masterKeyB64}`;
-        showSuccess(finalLink);
-      } catch (err) {
-        console.error("创建笔记失败:", err);
-        showErrorPopup("创建笔记失败: " + err.message);
-      } finally {
-        dom.createBtn.disabled = false;
-        dom.createBtn.innerText = "创建笔记";
-      }
-    }
-
-    function getTTLSeconds() {
-      const map = {
-        "1hour": 3600,
-        "1day": 86400,
-        "1week": 604800,
-        "1month": 2592000,
-      };
-      return map[selectedExpiration] || 3600;
-    }
-
-    function showSuccess(link) {
-      dom.linkDisplay.value = link;
-      dom.successModal.classList.remove("hidden");
-
-      setTimeout(() => {
-        dom.successContent.classList.remove("scale-95", "opacity-0");
-        dom.successContent.classList.add("scale-100", "opacity-100");
-      }, 10);
-
-      if (window.QRCodeGenerator) {
-        window.QRCodeGenerator.toCanvas(dom.qrcodeCanvas, link, { width: 128 });
-      }
-    }
-
-    dom.fileInput.onchange = () => {
-      const files = Array.from(dom.fileInput.files);
-      uploadedFiles = [...uploadedFiles, ...files].filter((f) => {
-        if (f.size > MAX_FILE_SIZE) {
-          showErrorPopup(`文件 ${f.name} 超过 10MB 限制`);
-          return false;
-        }
-        return true;
-      });
-
-      renderFileList();
-    };
-
-    function getFileIconSvg(fileName) {
-      const ext = fileName.split(".").pop().toLowerCase();
-      const icons = FILE_ICONS_DATA;
-
-      const map = {
-        // 文档类
-        txt: icons.documents.text,
-        log: icons.documents.text,
-        pdf: icons.documents.pdf,
-        doc: icons.documents.word,
-        docx: icons.documents.word,
-        ppt: icons.documents.presentation,
-        pptx: icons.documents.presentation,
-        xls: icons.documents.spreadsheet,
-        xlsx: icons.documents.spreadsheet,
-        csv: icons.documents.csv,
-        md: icons.documents.markdown,
-
-        // 多媒体
-        jpg: icons.media.image,
-        jpeg: icons.media.image,
-        png: icons.media.image,
-        gif: icons.media.image,
-        webp: icons.media.image,
-        svg: icons.media.svg,
-        mp4: icons.media.video,
-        mkv: icons.media.video,
-        mov: icons.media.video,
-        mp3: icons.media.audio,
-        wav: icons.media.audio,
-        flac: icons.media.audio,
-
-        // 压缩包
-        zip: icons.archives.zip,
-        rar: icons.archives.rar,
-        "7z": icons.archives.sevenzip,
-        tar: icons.archives.tar,
-        gz: icons.archives.tar,
-
-        // 编程与代码
-        js: icons.code.javascript,
-        ts: icons.code.typescript,
-        json: icons.code.json,
-        yaml: icons.code.json,
-        yml: icons.code.json,
-        rust: icons.code.rust,
-        rs: icons.code.rust,
-        php: icons.code.php,
-        swift: icons.code.swift,
-        sh: icons.code.shell,
-        bash: icons.code.shell,
-        py: icons.code.python,
-        java: icons.code.java,
-        go: icons.code.go,
-        sql: icons.code.sql,
-        html: icons.code.html,
-        css: icons.code.css,
-
-        // 系统文件
-        exe: icons.system.exe,
-        msi: icons.system.exe,
-        apk: icons.system.apk,
-      };
-
-      return map[ext] || icons.general.default;
-    }
-
-    function renderFileList() {
-      const fileListDom = document.getElementById("file-list");
-      const uploadAreaDom = document.getElementById("upload-area");
-
-      if (!fileListDom || !uploadAreaDom) return;
-
-      fileListDom.innerHTML = "";
-
-      if (uploadedFiles.length === 0) {
-        uploadAreaDom.classList.add("hidden");
-        return;
-      }
-
-      uploadedFiles.forEach((f, index) => {
-        const fileItem = document.createElement("div");
-        const iconSvg = getFileIconSvg(f.name);
-        const fileSize = formatBytes(f.size);
-
-        fileItem.className =
-          "flex items-center justify-between py-2 px-3 rounded-xl bg-white/50 dark:bg-gray-800/40 border border-pink-50 dark:border-gray-700/30 transition-all gap-4";
-
-        fileItem.innerHTML = `
-          <div class="flex items-center gap-3 overflow-hidden flex-1">
-            <div class="w-5 h-5 flex-shrink-0 text-pink-400">
-              ${iconSvg} 
+        STATE.uploadedFiles.forEach((f, index) => {
+          const fileItem = document.createElement("div");
+          fileItem.className = "flex items-center justify-between py-2 px-3 rounded-xl bg-white/50 dark:bg-gray-800/40 border border-pink-50 dark:border-gray-700/30 transition-all gap-4";
+          fileItem.innerHTML = `
+            <div class="flex items-center gap-3 overflow-hidden flex-1">
+              <div class="w-5 h-5 flex-shrink-0 text-pink-400">${Utils.getFileIconSvg(f.name)}</div>
+              <span class="truncate text-xs text-gray-600 dark:text-gray-300 font-medium">${f.name}</span>
             </div>
-            <span class="truncate text-xs text-gray-600 dark:text-gray-300 font-medium">${f.name}</span>
-          </div>
-          <div class="flex items-center gap-2 flex-shrink-0">
-            <span class="text-[10px] text-gray-400 dark:text-gray-500 font-mono">${fileSize}</span>
-            <button class="file-remove-btn text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400 transition-colors p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10" title="移除文件">
-              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-            </button>
-          </div>
-        `;
+            <div class="flex items-center gap-2 flex-shrink-0">
+              <span class="text-[10px] text-gray-400 dark:text-gray-500 font-mono">${Utils.formatBytes(f.size)}</span>
+              <button class="file-remove-btn text-gray-400 hover:text-red-500 p-1.5 rounded-lg">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+              </button>
+            </div>
+          `;
+          fileItem.querySelector(".file-remove-btn").onclick = () => {
+            STATE.uploadedFiles.splice(index, 1);
+            UI.renderFileList();
+          };
+          DOM.fileList.appendChild(fileItem);
+        });
+        DOM.uploadArea.classList.remove("hidden");
+      }
+    };
 
-        fileItem.querySelector(".file-remove-btn").onclick = () => {
-          uploadedFiles.splice(index, 1);
-          renderFileList();
+    // ==========================================
+    // 5. 核心逻辑层 (Core Logic) - 逻辑严禁修改
+    // ==========================================
+    const Core = {
+      async handleCreateNote() {
+        const content = DOM.noteContent.value.trim();
+        const password = DOM.notePassword.value;
+        const maxAccessVal = DOM.maxAccess?.value ? parseInt(DOM.maxAccess.value) : null;
+        const antiBruteForceEnabled = DOM.antiBruteForce?.checked || false;
+
+        if (!content && STATE.uploadedFiles.length === 0) return UI.showErrorPopup("内容或附件不能为空");
+
+        DOM.createBtn.disabled = true;
+        DOM.createBtn.innerText = "加密中...";
+
+        try {
+          const masterKey = await window.crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]);
+          const rawMasterKey = await window.crypto.subtle.exportKey("raw", masterKey);
+          const iv = window.crypto.getRandomValues(new Uint8Array(12));
+          const encoder = new TextEncoder();
+
+          const encContent = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv }, masterKey, encoder.encode(content));
+
+          const encFiles = await Promise.all(STATE.uploadedFiles.map(async (file) => {
+            const buf = await file.arrayBuffer();
+            const encF = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv }, masterKey, buf);
+            return { name: file.name, type: file.type, size: file.size, data: Utils.buf2b64(encF) };
+          }));
+
+          let storedKey;
+          const masterKeyB64 = Utils.buf2b64(rawMasterKey);
+
+          if (password) {
+            const pwBuf = encoder.encode(password);
+            const baseKey = await window.crypto.subtle.importKey("raw", pwBuf, "PBKDF2", false, ["deriveKey"]);
+            const iterations = antiBruteForceEnabled ? 600000 : 100000;
+            const derivedKey = await window.crypto.subtle.deriveKey(
+              { name: "PBKDF2", salt: iv, iterations, hash: "SHA-256" },
+              baseKey,
+              { name: "AES-GCM", length: 256 }, true, ["encrypt"]
+            );
+            const encMasterKey = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv }, derivedKey, rawMasterKey);
+            storedKey = Utils.buf2b64(encMasterKey);
+          } else {
+            storedKey = masterKeyB64;
+          }
+
+          const noteId = crypto.randomUUID();
+          const payload = {
+            id: noteId,
+            content: Utils.buf2b64(encContent),
+            key: storedKey,
+            iv: Utils.buf2b64(iv),
+            hasPassword: !!password,
+            antiBruteForce: antiBruteForceEnabled,
+            maxAccess: maxAccessVal,
+            files: encFiles,
+            expiration: DOM.neverExpires.checked ? null : Utils.getTTLSeconds(),
+            deleteAfterReading: DOM.burnAfterRead.checked,
+            createdAt: new Date().toISOString(),
+          };
+
+          const response = await fetch("/api/note", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+
+          if (!response.ok) throw new Error("服务器保存失败");
+          UI.showSuccess(`${window.location.origin}/note/${noteId}#${masterKeyB64}`);
+        } catch (err) {
+          UI.showErrorPopup("创建失败: " + err.message);
+        } finally {
+          DOM.createBtn.disabled = false;
+          DOM.createBtn.innerText = "创建笔记";
+        }
+      }
+    };
+
+    // ==========================================
+    // 6. 事件绑定层 (Event Listeners)
+    // ==========================================
+    const EventHandlers = {
+      init() {
+        DOM.uploadBtn.onclick = () => DOM.fileInput.click();
+        DOM.fileInput.onchange = () => {
+          const files = Array.from(DOM.fileInput.files);
+          const validFiles = files.filter(f => f.size <= CONFIG.MAX_FILE_SIZE || (UI.showErrorPopup(`文件 ${f.name} 超过 10MB`) && false));
+          STATE.uploadedFiles = [...STATE.uploadedFiles, ...validFiles];
+          UI.renderFileList();
         };
 
-        fileListDom.appendChild(fileItem);
-      });
-      uploadAreaDom.classList.remove("hidden");
-    }
+        DOM.notePassword.oninput = () => {
+          const val = DOM.notePassword.value;
+          if (window.zxcvbn && val) {
+            const res = zxcvbn(val);
+            DOM.pwStrengthText.textContent = `强度: ${CONFIG.STRENGTH_LABELS[res.score]}`;
+            DOM.pwStrengthFill.className = `h-full transition-all ${CONFIG.STRENGTH_COLORS[res.score]}`;
+            DOM.pwStrengthFill.style.width = `${(res.score + 1) * 20}%`;
+          }
+        };
 
-    dom.notePassword.oninput = () => {
-      const val = dom.notePassword.value;
-      if (window.zxcvbn && val) {
-        const result = zxcvbn(val);
-        dom.pwStrengthText.textContent = `强度: ${strengthLabels[result.score]}`;
-        dom.pwStrengthFill.className = `h-full transition-all duration-300 ${strengthColors[result.score]}`;
-        dom.pwStrengthFill.style.width = `${(result.score + 1) * 20}%`;
-      } else {
-        dom.pwStrengthText.textContent = "";
-        dom.pwStrengthFill.style.width = "0%";
-      }
-    };
+        DOM.togglePwBtn.onclick = () => {
+          const isVisible = DOM.notePassword.type === "text";
+          DOM.notePassword.type = isVisible ? "password" : "text";
+          DOM.eyeOpen.classList.toggle("hidden", isVisible);
+          DOM.eyeClosed.classList.toggle("hidden", !isVisible);
+        };
 
-    dom.togglePwBtn.onclick = () => {
-      const isVisible = dom.notePassword.type === "text";
-      dom.notePassword.type = isVisible ? "password" : "text";
-      dom.eyeOpen.classList.toggle("hidden", isVisible);
-      dom.eyeClosed.classList.toggle("hidden", !isVisible);
-    };
-
-    dom.copyBtn.onclick = () => {
-      dom.linkDisplay.select();
-      navigator.clipboard
-        .writeText(dom.linkDisplay.value)
-        .then(() => {
-          dom.copyIcon.classList.add("hidden");
-          dom.checkIcon.classList.remove("hidden");
-          dom.copyFeedback.classList.replace("opacity-0", "opacity-100");
-
-          setTimeout(() => {
-            dom.copyIcon.classList.remove("hidden");
-            dom.checkIcon.classList.add("hidden");
-            dom.copyFeedback.classList.replace("opacity-100", "opacity-0");
-          }, 2000);
-        })
-        .catch(() => {
-          showErrorPopup("复制失败，请手动复制链接");
-        });
-    };
-
-    function updateExpirationOptionsUI() {
-      const isNever = dom.neverExpires.checked;
-      const buttons = dom.expOptions.querySelectorAll("button");
-
-      dom.expOptions.classList.add("cursor-not-allowed");
-
-      buttons.forEach((btn) => {
-        if (isNever) {
-          btn.classList.add("opacity-40", "pointer-events-none");
-          btn.classList.remove("cursor-not-allowed");
-        } else {
-          dom.expOptions.classList.remove("cursor-not-allowed");
-          buttons.forEach((btn) => {
-            btn.classList.remove("opacity-40", "pointer-events-none");
+        DOM.copyBtn.onclick = () => {
+          DOM.linkDisplay.select();
+          navigator.clipboard.writeText(DOM.linkDisplay.value).then(() => {
+            DOM.copyIcon.classList.add("hidden");
+            DOM.checkIcon.classList.remove("hidden");
+            setTimeout(() => {
+              DOM.copyIcon.classList.remove("hidden");
+              DOM.checkIcon.classList.add("hidden");
+            }, 2000);
           });
-        }
-      });
-    }
+        };
 
-    dom.expOptions.onclick = (e) => {
-      if (dom.neverExpires.checked) return;
+        DOM.expOptions.onclick = (e) => {
+          const btn = e.target.closest("button");
+          if (!btn || DOM.neverExpires.checked) return;
+          DOM.expOptions.querySelectorAll("button").forEach(b => b.className = CONFIG.EXP_BTN_DEFAULT_CLASS);
+          btn.className = CONFIG.EXP_BTN_ACTIVE_CLASS;
+          STATE.selectedExpiration = btn.dataset.value;
+        };
 
-      const btn = e.target.closest("button");
-      if (!btn) return;
+        DOM.neverExpires.onchange = () => {
+          if (DOM.neverExpires.checked) DOM.burnAfterRead.checked = false;
+          UI.updateExpirationOptionsUI();
+        };
 
-      dom.expOptions.querySelectorAll("button").forEach((b) => {
-        b.className = EXP_BTN_DEFAULT_CLASS;
-      });
+        DOM.burnAfterRead.onchange = () => {
+          if (DOM.burnAfterRead.checked) {
+            DOM.neverExpires.checked = false;
+            DOM.maxAccess.value = "1";
+            DOM.maxAccess.disabled = true;
+          } else {
+            DOM.maxAccess.disabled = false;
+          }
+          UI.updateExpirationOptionsUI();
+        };
 
-      btn.className = EXP_BTN_ACTIVE_CLASS;
-      selectedExpiration = btn.dataset.value;
-    };
-
-    dom.neverExpires.onchange = () => {
-      if (dom.neverExpires.checked) {
-        dom.burnAfterRead.checked = false;
-        updateExpirationOptionsUI();
-
-        dom.maxAccess.disabled = false;
-        dom.maxAccess.parentElement.classList.remove("opacity-50");
-      } else {
-        updateExpirationOptionsUI();
+        DOM.createBtn.onclick = Core.handleCreateNote;
+        DOM.closeModalBtn.onclick = () => window.location.reload();
+        DOM.errorPopupCloseBtn.onclick = UI.hideErrorPopup;
+        
+        // 初始化 1小时 按钮状态
+        const defBtn = DOM.expOptions.querySelector('[data-value="1hour"]');
+        if (defBtn) defBtn.className = CONFIG.EXP_BTN_ACTIVE_CLASS;
       }
     };
 
-    dom.burnAfterRead.onchange = () => {
-      if (dom.burnAfterRead.checked) {
-        dom.neverExpires.checked = false;
-        dom.maxAccess.value = "1";
-        dom.maxAccess.disabled = true;
-        dom.maxAccess.parentElement.classList.add(
-          "opacity-50",
-          "transition-opacity",
-        );
-      } else {
-        dom.maxAccess.disabled = false;
-        dom.maxAccess.parentElement.classList.remove("opacity-50");
-      }
-      updateExpirationOptionsUI();
-    };
-
-    dom.shareEmailBtn.onclick = () => {
-      const email = prompt("请输入收件人邮箱:");
-      if (email) {
-        window.location.href = `mailto:${email}?subject=加密笔记分享&body=请查看此加密笔记: ${dom.linkDisplay.value}`;
-      }
-    };
-
-    dom.genPwBtn.onclick = () => {
-      const charset =
-        "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
-      let retVal = "";
-      for (let i = 0; i < 16; ++i) {
-        retVal += charset.charAt(Math.floor(Math.random() * charset.length));
-      }
-      dom.notePassword.value = retVal;
-      dom.notePassword.dispatchEvent(new Event("input"));
-    };
-
-    dom.closeModalBtn.onclick = () => window.location.reload();
-
-    if (dom.errorPopupCloseBtn) {
-      dom.errorPopupCloseBtn.onclick = () => {
-        dom.errorPopup.classList.add("hidden");
-        dom.errorPopupContent.classList.remove("scale-100", "opacity-100");
-        dom.errorPopupContent.classList.add("scale-90", "opacity-0");
-      };
-
-      dom.errorPopupOverlay.onclick = () => {
-        dom.errorPopup.classList.add("hidden");
-        dom.errorPopupContent.classList.remove("scale-100", "opacity-100");
-        dom.errorPopupContent.classList.add("scale-90", "opacity-0");
-      };
-    }
-
-    dom.createBtn.onclick = handleCreateNote;
-
-    // 上传按钮点击事件
-    dom.uploadBtn.onclick = () => {
-      if (dom.fileInput) {
-        dom.fileInput.click();
-      } else {
-        showErrorPopup("文件上传控件未找到");
-      }
-    };
-
-    if (dom.expOptions) {
-      const defaultBtn = dom.expOptions.querySelector('[data-value="1hour"]');
-      if (defaultBtn) {
-        defaultBtn.className = EXP_BTN_ACTIVE_CLASS;
-      }
-    }
+    DOM.init();
+    EventHandlers.init();
   }
 </script>
