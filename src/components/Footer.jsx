@@ -2,7 +2,7 @@
 import React from 'react';
 
 const Footer = () => {
-    const appVersion = "1.0.0";
+    const appVersion = "1.0.1";
     const githubProfileUrl = 'https://github.com/LogicLord-Liu/';
     const githubRepoUrl = 'https://github.com/LogicLord-Liu/Encrypted-Share-Notes';
 
