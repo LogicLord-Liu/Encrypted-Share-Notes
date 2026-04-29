@@ -320,7 +320,6 @@ const { id } = Astro.params;
       copyIcon: document.getElementById("copy-icon"),
       copyText: document.getElementById("copy-text"),
       privacyToggle: document.getElementById("privacy-toggle"),
-
       accessTag: document.getElementById("access-tag"),
       accessRemaining: document.getElementById("access-remaining"),
     };
@@ -365,7 +364,6 @@ const { id } = Astro.params;
 
       const decryptAndShow = async (masterKeyBuf) => {
         try {
-          const iv = b642buf(note.iv);
           const mKey = await window.crypto.subtle.importKey(
             "raw",
             masterKeyBuf,
@@ -373,21 +371,25 @@ const { id } = Astro.params;
             true,
             ["decrypt"],
           );
+
+          // ========== 解密文本：使用 contentIv ==========
+          const contentIv = b642buf(note.contentIv);
           const decContent = await window.crypto.subtle.decrypt(
-            { name: "AES-GCM", iv },
+            { name: "AES-GCM", iv: contentIv },
             mKey,
             b642buf(note.content),
           );
-
           dom.noteText.innerText = new TextDecoder().decode(decContent);
 
+          // ========== 解密文件：每个文件独立 IV ==========
           if (note.files?.length > 0) {
             dom.fileContainer.classList.remove("hidden");
             const fileCount = note.files.length;
             for (let i = 0; i < fileCount; i++) {
               const f = note.files[i];
+              const fileIv = b642buf(f.iv);
               const decF = await window.crypto.subtle.decrypt(
-                { name: "AES-GCM", iv },
+                { name: "AES-GCM", iv: fileIv },
                 mKey,
                 b642buf(f.data),
               );
@@ -395,11 +397,9 @@ const { id } = Astro.params;
                 new Blob([decF], { type: f.type }),
               );
               const li = document.createElement("li");
-
               if (fileCount % 2 !== 0 && i === fileCount - 1) {
                 li.classList.add("sm:col-span-2");
               }
-
               li.innerHTML = `
                 <a href="${url}" download="${f.name}" class="flex items-center p-4 bg-white dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-2xl hover:border-blue-500 transition-all shadow-sm hover:shadow-xl group">
                   <div class="p-3 bg-blue-50 dark:bg-blue-500/10 text-blue-600 rounded-xl mr-4 group-hover:scale-110 transition-transform">${getFileIcon(f.name)}</div>
@@ -415,7 +415,6 @@ const { id } = Astro.params;
           if (note.createdAt)
             dom.noteDate.innerText = `Timestamp: ${new Date(note.createdAt).getTime()}`;
 
-          // 显示访问次数限制
           if (note.maxAccess !== null && note.maxAccess !== undefined) {
             dom.accessRemaining.innerText = note.maxAccess;
             dom.accessTag.classList.remove("hidden");
@@ -437,6 +436,7 @@ const { id } = Astro.params;
         }
       };
 
+      // 阅后即焚流程
       if (note.deleteAfterReading) {
         dom.statusArea.classList.add("hidden");
         dom.burnConfirmArea.classList.remove("hidden");
@@ -449,12 +449,14 @@ const { id } = Astro.params;
           }
         };
       } else if (note.hasPassword) {
+        // 密码解锁流程（使用独立 passwordSalt）
         dom.statusArea.classList.add("hidden");
         dom.unlockArea.classList.remove("hidden");
       } else {
         await decryptAndShow(b642buf(hashKey));
       }
 
+      // 密码解锁逻辑（适配新的 passwordSalt）
       dom.unlockBtn.onclick = async () => {
         const pw = dom.inputPw.value;
         if (!pw) {
@@ -462,9 +464,10 @@ const { id } = Astro.params;
           return;
         }
         try {
-          const iv = b642buf(note.iv);
           const encoder = new TextEncoder();
           const iterations = note.antiBruteForce ? 600000 : 100000;
+          const salt = b642buf(note.passwordSalt);
+
           const baseKey = await window.crypto.subtle.importKey(
             "raw",
             encoder.encode(pw),
@@ -473,22 +476,21 @@ const { id } = Astro.params;
             ["deriveKey"],
           );
           const derivedKey = await window.crypto.subtle.deriveKey(
-            {
-              name: "PBKDF2",
-              salt: iv,
-              iterations: iterations,
-              hash: "SHA-256",
-            },
+            { name: "PBKDF2", salt, iterations, hash: "SHA-256" },
             baseKey,
             { name: "AES-GCM", length: 256 },
             true,
             ["decrypt"],
           );
+
+          // ✅ 修复：使用正确的 IV 解密主密钥
+          const masterKeyEncIv = b642buf(note.masterKeyEncIv);
           const mkBuf = await window.crypto.subtle.decrypt(
-            { name: "AES-GCM", iv },
+            { name: "AES-GCM", iv: masterKeyEncIv },
             derivedKey,
             b642buf(note.key),
           );
+
           await decryptAndShow(mkBuf);
         } catch (e) {
           triggerPasswordError();

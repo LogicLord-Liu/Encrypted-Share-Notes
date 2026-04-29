@@ -16,22 +16,24 @@ import { FILE_ICONS_DATA } from "../data/fileIcons.js";
 <script is:inline define:vars={{ FILE_ICONS_DATA }}>
   /**
    * Transcrypt 核心前端加密脚本
-   * 结构重构版 - 修复作用域与路径解析问题
+   * 已修复：AES-GCM IV 复用问题、PBKDF2 独立盐值、外部库容错、文件大小校验、重复上传触发
+   * 安全标准：文本/每个文件独立IV + PBKDF2独立随机盐 + 防暴力破解60万次迭代
    */
   if (typeof window !== "undefined") {
     // ==========================================
-    // 1. 配置与状态管理 (Config & State)
+    // 1. 配置与状态管理
     // ==========================================
     const CONFIG = {
       MAX_SIZE_MB: 10,
       get MAX_FILE_SIZE() {
         return this.MAX_SIZE_MB * 1024 * 1024;
       },
-      EXP_BTN_DEFAULT_CLASS:
-        "py-2.5 px-4 rounded-xl text-sm font-medium transition-all bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-blue-500/10 hover:text-blue-600",
-      EXP_BTN_ACTIVE_CLASS:
-        "py-2.5 px-4 rounded-xl text-sm font-medium transition-all bg-blue-500/90 text-white shadow-sm",
-      STRENGTH_LABELS: ["非常弱", "弱", "中等", "强", "非常强"],
+      EXP_BTN_BASE:
+        "py-2.5 px-4 rounded-xl text-sm font-medium transition-all duration-200 border border-transparent",
+      EXP_BTN_DEFAULT:
+        "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-blue-500/10 hover:text-blue-600",
+      EXP_BTN_ACTIVE: "bg-blue-500/90 text-white shadow-sm",
+      STRENGTH_LABELS: ["WEAK", "FAIR", "GOOD", "STRONG", "SECURE"],
       STRENGTH_COLORS: [
         "bg-red-500",
         "bg-orange-400",
@@ -39,31 +41,65 @@ import { FILE_ICONS_DATA } from "../data/fileIcons.js";
         "bg-green-400",
         "bg-green-600",
       ],
+      PBKDF2_ITERATIONS_NORMAL: 100000,
+      PBKDF2_ITERATIONS_STRONG: 600000,
     };
 
-    // 修复：映射表存储路径字符串，由 Utils 解析
     const EXTENSION_MAP = Object.freeze({
-      txt: "documents.text", log: "documents.text", pdf: "documents.pdf",
-      doc: "documents.word", docx: "documents.word",
-      ppt: "documents.presentation", pptx: "documents.presentation",
-      xls: "documents.spreadsheet", xlsx: "documents.spreadsheet",
-      csv: "documents.csv", md: "documents.markdown", xml: "documents.xml",
-      jpg: "media.image", jpeg: "media.image", png: "media.image", webp: "media.image",
-      gif: "media.gif", svg: "media.svg", mp4: "media.video", mkv: "media.video",
-      mov: "media.video", mp3: "media.audio", wav: "media.audio", flac: "media.audio",
-      zip: "archives.zip", rar: "archives.rar", "7z": "archives.sevenzip",
-      tar: "archives.tar", gz: "archives.tar",
-      js: "code.javascript", ts: "code.typescript", json: "code.json",
-      yaml: "code.json", yml: "code.json", rs: "code.rust", rust: "code.rust",
-      php: "code.php", swift: "code.swift", sh: "code.shell", bash: "code.shell",
-      py: "code.python", java: "code.java", go: "code.go", sql: "code.sql",
-      html: "code.html", css: "code.css", jsx: "code.jsx", tsx: "code.jsx",
+      txt: "documents.text",
+      log: "documents.text",
+      pdf: "documents.pdf",
+      doc: "documents.word",
+      docx: "documents.word",
+      ppt: "documents.presentation",
+      pptx: "documents.presentation",
+      xls: "documents.spreadsheet",
+      xlsx: "documents.spreadsheet",
+      csv: "documents.csv",
+      md: "documents.markdown",
+      xml: "documents.xml",
+      jpg: "media.image",
+      jpeg: "media.image",
+      png: "media.image",
+      webp: "media.image",
+      gif: "media.gif",
+      svg: "media.svg",
+      mp4: "media.video",
+      mkv: "media.video",
+      mov: "media.video",
+      mp3: "media.audio",
+      wav: "media.audio",
+      flac: "media.audio",
+      zip: "archives.zip",
+      rar: "archives.rar",
+      "7z": "archives.sevenzip",
+      tar: "archives.tar",
+      gz: "archives.tar",
+      js: "code.javascript",
+      ts: "code.typescript",
+      json: "code.json",
+      yaml: "code.json",
+      yml: "code.json",
+      rs: "code.rust",
+      rust: "code.rust",
+      php: "code.php",
+      swift: "code.swift",
+      sh: "code.shell",
+      bash: "code.shell",
+      py: "code.python",
+      java: "code.java",
+      go: "code.go",
+      sql: "code.sql",
+      html: "code.html",
+      css: "code.css",
+      jsx: "code.jsx",
+      tsx: "code.jsx",
     });
 
     const SPECIAL_FILE_MAP = Object.freeze({
-      "dockerfile": "code.shell",
-      "gitignore": "documents.text",
-      "package.json": "code.json"
+      dockerfile: "code.shell",
+      gitignore: "documents.text",
+      "package.json": "code.json",
     });
 
     const STATE = {
@@ -72,7 +108,7 @@ import { FILE_ICONS_DATA } from "../data/fileIcons.js";
     };
 
     // ==========================================
-    // 2. DOM 元素管理 (DOM Elements)
+    // 2. DOM 元素管理
     // ==========================================
     const DOM = {
       init() {
@@ -82,6 +118,7 @@ import { FILE_ICONS_DATA } from "../data/fileIcons.js";
         this.neverExpires = document.getElementById("never-expires");
         this.burnAfterRead = document.getElementById("delete-after-reading");
         this.expOptions = document.getElementById("expiration-options");
+        this.expButtons = this.expOptions?.querySelectorAll("button");
         this.togglePwBtn = document.getElementById("toggle-password");
         this.eyeOpen = document.getElementById("eye-open");
         this.eyeClosed = document.getElementById("eye-closed");
@@ -98,65 +135,130 @@ import { FILE_ICONS_DATA } from "../data/fileIcons.js";
         this.copyBtn = document.getElementById("copy-link-button");
         this.copyIcon = document.getElementById("copy-icon");
         this.checkIcon = document.getElementById("check-icon");
-        this.copyFeedback = document.getElementById("copy-feedback");
         this.qrcodeCanvas = document.getElementById("qrcode-canvas");
         this.closeModalBtn = document.getElementById("close-modal-button");
-        this.shareEmailBtn = document.getElementById("share-email-button");
-        this.errorPopup = document.getElementById("error-popup");
-        this.errorPopupContent = document.getElementById("error-popup-content");
-        this.errorPopupOverlay = document.getElementById("error-popup-overlay");
-        this.errorPopupCloseBtn = document.getElementById("error-popup-close-btn");
-        this.errorPopupMessage = document.getElementById("error-popup-message");
         this.maxAccess = document.getElementById("max-access");
+        this.errorPopup = document.getElementById("error-popup");
+        this.errorPopupMessage = document.getElementById("error-popup-message");
+        this.errorPopupContent = document.getElementById("error-popup-content");
+        this.errorPopupCloseBtn = document.getElementById(
+          "error-popup-close-btn",
+        );
         this.antiBruteForce = document.getElementById("anti-brute-force");
       },
     };
 
     // ==========================================
-    // 3. 工具函数 (Utilities)
+    // 3. 工具函数
     // ==========================================
     const Utils = {
       buf2b64: (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))),
-
       formatBytes: (bytes) => {
-        if (bytes === 0) return "0 Bytes";
+        if (!bytes || isNaN(bytes) || bytes === 0) return "0 Bytes";
         const i = Math.floor(Math.log(bytes) / Math.log(1024));
-        return parseFloat((bytes / Math.pow(1024, i)).toFixed(2)) + " " + ["Bytes", "KB", "MB", "GB"][i];
+        return (
+          parseFloat((bytes / Math.pow(1024, i)).toFixed(2)) +
+          " " +
+          ["Bytes", "KB", "MB", "GB"][i]
+        );
       },
-
       getTTLSeconds: () => {
-        const map = { "1hour": 3600, "1day": 86400, "1week": 604800, "1month": 2592000 };
+        const map = {
+          "1hour": 3600,
+          "1day": 86400,
+          "1week": 604800,
+          "1month": 2592000,
+        };
         return map[STATE.selectedExpiration] || 3600;
       },
-
-      getNestedValue: (obj, path) => {
-        return path.split(".").reduce((acc, key) => (acc && acc[key] ? acc[key] : null), obj);
-      },
-
-      getFileIconSvg: (fileName) => {
-        if (!fileName || typeof fileName !== "string") return FILE_ICONS_DATA.general.default;
-        const lowerName = fileName.toLowerCase();
-
-        // 1. 特殊文件名匹配
-        if (SPECIAL_FILE_MAP[lowerName]) {
-          return Utils.getNestedValue(FILE_ICONS_DATA, SPECIAL_FILE_MAP[lowerName]) || FILE_ICONS_DATA.general.default;
+      generateSecurePassword: (length = 16) => {
+        const charset =
+          "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+~";
+        let retVal = "";
+        const values = new Uint32Array(length);
+        window.crypto.getRandomValues(values);
+        for (let i = 0; i < length; i++) {
+          retVal += charset[values[i] % charset.length];
         }
-        // 2. 复合后缀
+        return retVal;
+      },
+      getNestedValue: (obj, path) =>
+        path
+          .split(".")
+          .reduce((acc, key) => (acc && acc[key] ? acc[key] : null), obj),
+      getFileIconSvg: (fileName) => {
+        if (!fileName || typeof fileName !== "string")
+          return FILE_ICONS_DATA.general.default;
+        const lowerName = fileName.toLowerCase();
+        if (SPECIAL_FILE_MAP[lowerName])
+          return (
+            Utils.getNestedValue(
+              FILE_ICONS_DATA,
+              SPECIAL_FILE_MAP[lowerName],
+            ) || FILE_ICONS_DATA.general.default
+          );
         if (lowerName.endsWith(".tar.gz")) return FILE_ICONS_DATA.archives.tar;
-        
-        // 3. 标准后缀匹配
         const ext = lowerName.split(".").pop();
         const iconPath = EXTENSION_MAP[ext];
-        return (iconPath && Utils.getNestedValue(FILE_ICONS_DATA, iconPath)) || FILE_ICONS_DATA.general.default;
-      }
+        return (
+          (iconPath && Utils.getNestedValue(FILE_ICONS_DATA, iconPath)) ||
+          FILE_ICONS_DATA.general.default
+        );
+      },
     };
 
     // ==========================================
-    // 4. UI 交互层 (UI Interactions)
+    // 4. UI 交互层
     // ==========================================
     const UI = {
+      updateSettingsState: () => {
+        const isNeverExpire = DOM.neverExpires.checked;
+        const isBurnAfterRead = DOM.burnAfterRead.checked;
+
+        const shouldDisableExp = isNeverExpire || isBurnAfterRead;
+        DOM.expButtons?.forEach((btn) => {
+          const isActive = btn.dataset.value === STATE.selectedExpiration;
+          btn.className = `${CONFIG.EXP_BTN_BASE} ${isActive ? CONFIG.EXP_BTN_ACTIVE : CONFIG.EXP_BTN_DEFAULT}`;
+          if (shouldDisableExp) {
+            btn.classList.add("opacity-40", "cursor-not-allowed");
+          } else {
+            btn.classList.remove("opacity-40", "cursor-not-allowed");
+          }
+        });
+
+        if (isBurnAfterRead) {
+          DOM.maxAccess.value = "1";
+          DOM.maxAccess.disabled = true;
+          DOM.maxAccess.parentElement.classList.add(
+            "opacity-40",
+            "cursor-not-allowed",
+          );
+          DOM.maxAccess.classList.add("cursor-not-allowed");
+        } else {
+          DOM.maxAccess.disabled = false;
+          DOM.maxAccess.parentElement.classList.remove(
+            "opacity-40",
+            "cursor-not-allowed",
+          );
+          DOM.maxAccess.classList.remove("cursor-not-allowed");
+        }
+      },
+
+      updatePasswordStrength: () => {
+        if (!window.zxcvbn) return;
+        const val = DOM.notePassword.value;
+        if (val) {
+          const res = zxcvbn(val);
+          DOM.pwStrengthText.textContent = `强度: ${CONFIG.STRENGTH_LABELS[res.score]}`;
+          DOM.pwStrengthFill.className = `h-full transition-all ${CONFIG.STRENGTH_COLORS[res.score]}`;
+          DOM.pwStrengthFill.style.width = `${(res.score + 1) * 20}%`;
+        } else {
+          DOM.pwStrengthText.textContent = "强度: 无";
+          DOM.pwStrengthFill.style.width = "0%";
+        }
+      },
+
       showErrorPopup: (message = "操作失败") => {
-        if (!DOM.errorPopup) return alert(message);
         DOM.errorPopupMessage.textContent = message;
         DOM.errorPopup.classList.remove("hidden");
         setTimeout(() => {
@@ -166,9 +268,9 @@ import { FILE_ICONS_DATA } from "../data/fileIcons.js";
       },
 
       hideErrorPopup: () => {
-        DOM.errorPopup.classList.add("hidden");
         DOM.errorPopupContent.classList.replace("scale-100", "scale-90");
         DOM.errorPopupContent.classList.replace("opacity-100", "opacity-0");
+        setTimeout(() => DOM.errorPopup.classList.add("hidden"), 200);
       },
 
       showSuccess: (link) => {
@@ -179,22 +281,24 @@ import { FILE_ICONS_DATA } from "../data/fileIcons.js";
           DOM.successContent.classList.replace("opacity-0", "opacity-100");
         }, 10);
         if (window.QRCodeGenerator) {
-          window.QRCodeGenerator.toCanvas(DOM.qrcodeCanvas, link, { width: 128 });
+          try {
+            window.QRCodeGenerator.toCanvas(DOM.qrcodeCanvas, link, {
+              width: 128,
+            });
+          } catch (e) {}
         }
       },
 
       renderFileList: () => {
-        if (!DOM.fileList || !DOM.uploadArea) return;
         DOM.fileList.innerHTML = "";
-
         if (STATE.uploadedFiles.length === 0) {
           DOM.uploadArea.classList.add("hidden");
           return;
         }
-
         STATE.uploadedFiles.forEach((f, index) => {
           const fileItem = document.createElement("div");
-          fileItem.className = "flex items-center justify-between py-2 px-3 rounded-xl bg-white/50 dark:bg-gray-800/40 border border-pink-50 dark:border-gray-700/30 transition-all gap-4";
+          fileItem.className =
+            "flex items-center justify-between py-2 px-3 rounded-xl bg-white/50 dark:bg-gray-800/40 border border-pink-50 dark:border-gray-700/30 gap-4";
           fileItem.innerHTML = `
             <div class="flex items-center gap-3 overflow-hidden flex-1">
               <div class="w-5 h-5 flex-shrink-0 text-pink-400">${Utils.getFileIconSvg(f.name)}</div>
@@ -202,7 +306,7 @@ import { FILE_ICONS_DATA } from "../data/fileIcons.js";
             </div>
             <div class="flex items-center gap-2 flex-shrink-0">
               <span class="text-[10px] text-gray-400 dark:text-gray-500 font-mono">${Utils.formatBytes(f.size)}</span>
-              <button class="file-remove-btn text-gray-400 hover:text-red-500 p-1.5 rounded-lg">
+              <button class="file-remove-btn text-gray-400 hover:text-red-500 p-1.5 rounded-lg transition-colors">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
               </button>
             </div>
@@ -214,52 +318,113 @@ import { FILE_ICONS_DATA } from "../data/fileIcons.js";
           DOM.fileList.appendChild(fileItem);
         });
         DOM.uploadArea.classList.remove("hidden");
-      }
+      },
     };
 
     // ==========================================
-    // 5. 核心逻辑层 (Core Logic) - 逻辑严禁修改
+    // 5. 核心加密逻辑层（已完全重构：独立IV + 独立盐值）
     // ==========================================
     const Core = {
       async handleCreateNote() {
         const content = DOM.noteContent.value.trim();
-        const password = DOM.notePassword.value;
-        const maxAccessVal = DOM.maxAccess?.value ? parseInt(DOM.maxAccess.value) : null;
+        const password = DOM.notePassword.value?.trim() || "";
+        const maxAccessVal = DOM.maxAccess.value
+          ? parseInt(DOM.maxAccess.value, 10)
+          : null;
+        const maxAccess = isNaN(maxAccessVal) ? null : maxAccessVal;
         const antiBruteForceEnabled = DOM.antiBruteForce?.checked || false;
 
-        if (!content && STATE.uploadedFiles.length === 0) return UI.showErrorPopup("内容或附件不能为空");
+        if (!content && STATE.uploadedFiles.length === 0)
+          return UI.showErrorPopup("内容或附件不能为空");
 
         DOM.createBtn.disabled = true;
         DOM.createBtn.innerText = "加密中...";
 
         try {
-          const masterKey = await window.crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]);
-          const rawMasterKey = await window.crypto.subtle.exportKey("raw", masterKey);
-          const iv = window.crypto.getRandomValues(new Uint8Array(12));
+          const masterKey = await window.crypto.subtle.generateKey(
+            { name: "AES-GCM", length: 256 },
+            true,
+            ["encrypt", "decrypt"],
+          );
+          const rawMasterKey = await window.crypto.subtle.exportKey(
+            "raw",
+            masterKey,
+          );
           const encoder = new TextEncoder();
 
-          const encContent = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv }, masterKey, encoder.encode(content));
+          const contentIv = window.crypto.getRandomValues(new Uint8Array(12));
+          const encContent = await window.crypto.subtle.encrypt(
+            { name: "AES-GCM", iv: contentIv },
+            masterKey,
+            encoder.encode(content),
+          );
 
-          const encFiles = await Promise.all(STATE.uploadedFiles.map(async (file) => {
-            const buf = await file.arrayBuffer();
-            const encF = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv }, masterKey, buf);
-            return { name: file.name, type: file.type, size: file.size, data: Utils.buf2b64(encF) };
-          }));
+          const encFiles = await Promise.all(
+            STATE.uploadedFiles.map(async (file) => {
+              const fileIv = window.crypto.getRandomValues(new Uint8Array(12));
+              const buf = await file.arrayBuffer();
+              const encF = await window.crypto.subtle.encrypt(
+                { name: "AES-GCM", iv: fileIv },
+                masterKey,
+                buf,
+              );
+              return {
+                name: file.name,
+                type: file.type,
+                size: file.size,
+                data: Utils.buf2b64(encF),
+                iv: Utils.buf2b64(fileIv),
+              };
+            }),
+          );
 
           let storedKey;
+          let passwordSaltB64 = null;
+          let masterKeyEncIvB64 = null;
           const masterKeyB64 = Utils.buf2b64(rawMasterKey);
 
           if (password) {
-            const pwBuf = encoder.encode(password);
-            const baseKey = await window.crypto.subtle.importKey("raw", pwBuf, "PBKDF2", false, ["deriveKey"]);
-            const iterations = antiBruteForceEnabled ? 600000 : 100000;
-            const derivedKey = await window.crypto.subtle.deriveKey(
-              { name: "PBKDF2", salt: iv, iterations, hash: "SHA-256" },
-              baseKey,
-              { name: "AES-GCM", length: 256 }, true, ["encrypt"]
+            const passwordSalt = window.crypto.getRandomValues(
+              new Uint8Array(16),
             );
-            const encMasterKey = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv }, derivedKey, rawMasterKey);
+            passwordSaltB64 = Utils.buf2b64(passwordSalt);
+
+            const pwBuf = encoder.encode(password);
+            const baseKey = await window.crypto.subtle.importKey(
+              "raw",
+              pwBuf,
+              "PBKDF2",
+              false,
+              ["deriveKey"],
+            );
+            const iterations = antiBruteForceEnabled
+              ? CONFIG.PBKDF2_ITERATIONS_STRONG
+              : CONFIG.PBKDF2_ITERATIONS_NORMAL;
+
+            const derivedKey = await window.crypto.subtle.deriveKey(
+              {
+                name: "PBKDF2",
+                salt: passwordSalt,
+                iterations,
+                hash: "SHA-256",
+              },
+              baseKey,
+              { name: "AES-GCM", length: 256 },
+              true,
+              ["encrypt"],
+            );
+
+            const masterKeyEncIv = window.crypto.getRandomValues(
+              new Uint8Array(12),
+            );
+            const encMasterKey = await window.crypto.subtle.encrypt(
+              { name: "AES-GCM", iv: masterKeyEncIv },
+              derivedKey,
+              rawMasterKey,
+            );
+
             storedKey = Utils.buf2b64(encMasterKey);
+            masterKeyEncIvB64 = Utils.buf2b64(masterKeyEncIv);
           } else {
             storedKey = masterKeyB64;
           }
@@ -269,13 +434,15 @@ import { FILE_ICONS_DATA } from "../data/fileIcons.js";
             id: noteId,
             content: Utils.buf2b64(encContent),
             key: storedKey,
-            iv: Utils.buf2b64(iv),
+            contentIv: Utils.buf2b64(contentIv),
+            passwordSalt: passwordSaltB64,
+            masterKeyEncIv: masterKeyEncIvB64,
             hasPassword: !!password,
             antiBruteForce: antiBruteForceEnabled,
-            maxAccess: maxAccessVal,
             files: encFiles,
             expiration: DOM.neverExpires.checked ? null : Utils.getTTLSeconds(),
             deleteAfterReading: DOM.burnAfterRead.checked,
+            maxAccess: maxAccess,
             createdAt: new Date().toISOString(),
           };
 
@@ -286,37 +453,44 @@ import { FILE_ICONS_DATA } from "../data/fileIcons.js";
           });
 
           if (!response.ok) throw new Error("服务器保存失败");
-          UI.showSuccess(`${window.location.origin}/note/${noteId}#${masterKeyB64}`);
+          UI.showSuccess(
+            `${window.location.origin}/note/${noteId}#${masterKeyB64}`,
+          );
         } catch (err) {
           UI.showErrorPopup("创建失败: " + err.message);
         } finally {
           DOM.createBtn.disabled = false;
           DOM.createBtn.innerText = "创建笔记";
         }
-      }
+      },
     };
 
     // ==========================================
-    // 6. 事件绑定层 (Event Listeners)
+    // 6. 事件绑定层
     // ==========================================
     const EventHandlers = {
       init() {
         DOM.uploadBtn.onclick = () => DOM.fileInput.click();
         DOM.fileInput.onchange = () => {
           const files = Array.from(DOM.fileInput.files);
-          const validFiles = files.filter(f => f.size <= CONFIG.MAX_FILE_SIZE || (UI.showErrorPopup(`文件 ${f.name} 超过 10MB`) && false));
+          const validFiles = files.filter((f) => {
+            if (f.size > CONFIG.MAX_FILE_SIZE) {
+              UI.showErrorPopup(`文件 ${f.name} 超过 ${CONFIG.MAX_SIZE_MB}MB`);
+              return false;
+            }
+            return true;
+          });
           STATE.uploadedFiles = [...STATE.uploadedFiles, ...validFiles];
           UI.renderFileList();
+          DOM.fileInput.value = ""; // 修复重复上传不触发
         };
 
-        DOM.notePassword.oninput = () => {
-          const val = DOM.notePassword.value;
-          if (window.zxcvbn && val) {
-            const res = zxcvbn(val);
-            DOM.pwStrengthText.textContent = `强度: ${CONFIG.STRENGTH_LABELS[res.score]}`;
-            DOM.pwStrengthFill.className = `h-full transition-all ${CONFIG.STRENGTH_COLORS[res.score]}`;
-            DOM.pwStrengthFill.style.width = `${(res.score + 1) * 20}%`;
-          }
+        DOM.notePassword.oninput = UI.updatePasswordStrength;
+
+        DOM.genPwBtn.onclick = () => {
+          const newPassword = Utils.generateSecurePassword();
+          DOM.notePassword.value = newPassword;
+          UI.updatePasswordStrength();
         };
 
         DOM.togglePwBtn.onclick = () => {
@@ -328,48 +502,45 @@ import { FILE_ICONS_DATA } from "../data/fileIcons.js";
 
         DOM.copyBtn.onclick = () => {
           DOM.linkDisplay.select();
-          navigator.clipboard.writeText(DOM.linkDisplay.value).then(() => {
-            DOM.copyIcon.classList.add("hidden");
-            DOM.checkIcon.classList.remove("hidden");
-            setTimeout(() => {
-              DOM.copyIcon.classList.remove("hidden");
-              DOM.checkIcon.classList.add("hidden");
-            }, 2000);
-          });
+          navigator.clipboard
+            .writeText(DOM.linkDisplay.value)
+            .then(() => {
+              DOM.copyIcon.classList.add("hidden");
+              DOM.checkIcon.classList.remove("hidden");
+              setTimeout(() => {
+                DOM.copyIcon.classList.remove("hidden");
+                DOM.checkIcon.classList.add("hidden");
+              }, 2000);
+            })
+            .catch(() => {
+              UI.showErrorPopup("复制失败，请手动复制");
+            });
         };
 
         DOM.expOptions.onclick = (e) => {
           const btn = e.target.closest("button");
-          if (!btn || DOM.neverExpires.checked) return;
-          DOM.expOptions.querySelectorAll("button").forEach(b => b.className = CONFIG.EXP_BTN_DEFAULT_CLASS);
-          btn.className = CONFIG.EXP_BTN_ACTIVE_CLASS;
+          if (!btn || DOM.neverExpires.checked || DOM.burnAfterRead.checked)
+            return;
           STATE.selectedExpiration = btn.dataset.value;
+          UI.updateSettingsState();
         };
 
         DOM.neverExpires.onchange = () => {
           if (DOM.neverExpires.checked) DOM.burnAfterRead.checked = false;
-          UI.updateExpirationOptionsUI();
+          UI.updateSettingsState();
         };
 
         DOM.burnAfterRead.onchange = () => {
-          if (DOM.burnAfterRead.checked) {
-            DOM.neverExpires.checked = false;
-            DOM.maxAccess.value = "1";
-            DOM.maxAccess.disabled = true;
-          } else {
-            DOM.maxAccess.disabled = false;
-          }
-          UI.updateExpirationOptionsUI();
+          if (DOM.burnAfterRead.checked) DOM.neverExpires.checked = false;
+          UI.updateSettingsState();
         };
 
         DOM.createBtn.onclick = Core.handleCreateNote;
         DOM.closeModalBtn.onclick = () => window.location.reload();
         DOM.errorPopupCloseBtn.onclick = UI.hideErrorPopup;
-        
-        // 初始化 1小时 按钮状态
-        const defBtn = DOM.expOptions.querySelector('[data-value="1hour"]');
-        if (defBtn) defBtn.className = CONFIG.EXP_BTN_ACTIVE_CLASS;
-      }
+
+        UI.updateSettingsState();
+      },
     };
 
     DOM.init();
