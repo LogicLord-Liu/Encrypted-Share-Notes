@@ -33,7 +33,7 @@ import { FILE_ICONS_DATA } from "../data/fileIcons.js";
       EXP_BTN_DEFAULT:
         "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-blue-500/10 hover:text-blue-600",
       EXP_BTN_ACTIVE: "bg-blue-500/90 text-white shadow-sm",
-      STRENGTH_LABELS: ["WEAK", "FAIR", "GOOD", "STRONG", "SECURE"],
+      STRENGTH_LABELS: ["CRITICAL RISK", "WEAK", "FAIR", "STRONG", "SECURE"],
       STRENGTH_COLORS: [
         "bg-red-500",
         "bg-orange-400",
@@ -145,6 +145,7 @@ import { FILE_ICONS_DATA } from "../data/fileIcons.js";
           "error-popup-close-btn",
         );
         this.antiBruteForce = document.getElementById("anti-brute-force");
+        this.pwHelperText = document.getElementById("pw-helper-text");
       },
     };
 
@@ -247,14 +248,91 @@ import { FILE_ICONS_DATA } from "../data/fileIcons.js";
       updatePasswordStrength: () => {
         if (!window.zxcvbn) return;
         const val = DOM.notePassword.value;
+        const strips = document.querySelectorAll(".pw-strip");
+
+        const levels = [
+          {
+            text: "text-red-500",
+            bg: "bg-gradient-to-r from-red-600 to-red-400",
+            shadow: "0 0 12px rgba(239,68,68,0.3)",
+            label: "WEAK",
+          },
+          {
+            text: "text-orange-500",
+            bg: "bg-gradient-to-r from-orange-500 to-orange-300",
+            shadow: "0 0 12px rgba(249,115,22,0.25)",
+            label: "FAIR",
+          },
+          {
+            text: "text-emerald-500",
+            bg: "bg-gradient-to-r from-emerald-500 to-teal-400",
+            shadow: "0 0 12px rgba(16,185,129,0.3)",
+            label: "STRONG",
+          },
+          {
+            text: "text-blue-500",
+            bg: "bg-gradient-to-r from-cyan-500 to-blue-500",
+            shadow: "0 0 15px rgba(59,130,246,0.4)",
+            label: "SECURE",
+          },
+        ];
+
+        const commonTextClasses =
+          "text-[11px] font-black uppercase tracking-tighter transition-all duration-300";
+
         if (val) {
           const res = zxcvbn(val);
-          DOM.pwStrengthText.textContent = `强度: ${CONFIG.STRENGTH_LABELS[res.score]}`;
-          DOM.pwStrengthFill.className = `h-full transition-all ${CONFIG.STRENGTH_COLORS[res.score]}`;
-          DOM.pwStrengthFill.style.width = `${(res.score + 1) * 20}%`;
+          const score = res.score;
+
+          if (score < 4) {
+            const feedback =
+              res.feedback.warning ||
+              (res.feedback.suggestions && res.feedback.suggestions[0]) ||
+              "Keep adding characters...";
+            DOM.pwHelperText.textContent = feedback;
+            DOM.pwHelperText.className =
+              "text-[10px] font-medium text-gray-400 dark:text-gray-500 opacity-100 transform translate-y-0 transition-all duration-300";
+          } else {
+            DOM.pwHelperText.textContent =
+              "Your password is encrypted and highly secure.";
+            DOM.pwHelperText.className =
+              "text-[10px] font-medium text-blue-500/80 opacity-100 transform translate-y-0 transition-all duration-300";
+          }
+
+          if (score === 0) {
+            DOM.pwStrengthText.textContent = "CRITICAL RISK";
+            DOM.pwStrengthText.className = `${commonTextClasses} text-red-600 animate-pulse`;
+            strips.forEach((s) => {
+              s.className =
+                "pw-strip h-full flex-1 rounded-full bg-gray-200/50 dark:bg-gray-800/50 transition-all";
+              s.style.boxShadow = "none";
+            });
+          } else {
+            const config = levels[score - 1];
+            DOM.pwStrengthText.textContent = config.label;
+            DOM.pwStrengthText.className = `${commonTextClasses} ${config.text}`;
+
+            strips.forEach((strip, i) => {
+              if (i < score) {
+                strip.className = `pw-strip h-full flex-1 rounded-full transition-all duration-500 ${config.bg}`;
+                strip.style.boxShadow = config.shadow;
+              } else {
+                strip.className =
+                  "pw-strip h-full flex-1 rounded-full bg-gray-200/50 dark:bg-gray-800/50 transition-all";
+                strip.style.boxShadow = "none";
+              }
+            });
+          }
         } else {
-          DOM.pwStrengthText.textContent = "强度: 无";
-          DOM.pwStrengthFill.style.width = "0%";
+          DOM.pwStrengthText.textContent = "WAITING";
+          DOM.pwStrengthText.className = `${commonTextClasses} text-gray-400`;
+          DOM.pwHelperText.className =
+            "text-[10px] opacity-0 transform translate-y-1 transition-all duration-300";
+          strips.forEach((s) => {
+            s.className =
+              "pw-strip h-full flex-1 rounded-full bg-gray-200/50 dark:bg-gray-800/50 transition-all";
+            s.style.boxShadow = "none";
+          });
         }
       },
 
